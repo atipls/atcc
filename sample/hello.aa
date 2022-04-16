@@ -1,0 +1,16 @@
+alias bool = i32;
+
+
+fun identity(a: i32): i32 {
+    return a;
+}
+
+fun three(): i32 {
+    one := identity(1);
+    two := identity(2);
+    return one + two;
+}
+
+fun main(): i32 {
+    return 0;
+}
