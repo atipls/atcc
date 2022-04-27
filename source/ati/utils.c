@@ -1,18 +1,15 @@
 #include "utils.h"
 
 void *vector_growf(void *arr, int increment, int itemsize) {
-    int dbl_cur = arr ? 2 * vector_raw_cap(arr) : 0;
-    int min_needed = vector_len(arr) + increment;
-    int m = dbl_cur > min_needed ? dbl_cur : min_needed;
-    int *p = (int *) realloc(arr ? vector_raw(arr) : 0, itemsize * m + sizeof(int) * 2);
-    if (p) {
-        if (!arr)
-            p[1] = 0;
-        p[0] = m;
-        return p + 2;
-    } else {
-        return (void *) (2 * sizeof(int));// try to force a NULL pointer exception later
-    }
+    int natural_capacity = arr ? 2 * vector_raw_cap(arr) : 0;
+    int space_needed = vector_len(arr) + increment;
+    int new_capacity = natural_capacity > space_needed ? natural_capacity : space_needed;
+    int *reallocated_data = (int *) realloc(arr ? vector_raw(arr) : 0, itemsize * new_capacity + sizeof(int) * 2);
+    if (!reallocated_data) return null;
+    if (!arr)
+        reallocated_data[1] = 0;
+    reallocated_data[0] = new_capacity;
+    return reallocated_data + 2;
 }
 
 

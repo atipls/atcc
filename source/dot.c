@@ -163,14 +163,8 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
             void *type = write_node_dot(node->variable_type, f);
             void *value = write_node_dot(node->variable_initializer, f);
 
-            if (type) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"type\"]\n", node, type);
-            }
-
-            if (value) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
-            }
-
+            if (type) fprintf(f, "\"%p\" -> \"%p\" [label=\"type\"]\n", node, type);
+            if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
             break;
         }
         case AST_DECLARATION_FUNCTION_PARAMETER: {
@@ -187,15 +181,10 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
             }
 
             void *rettype = write_node_dot(node->function_return_type, f);
-            if (rettype) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"return type\"]\n", node, rettype);
-            }
-
             void *body = write_node_dot(node->function_body, f);
-            if (body) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"body\"]\n", node, body);
-            }
 
+            if (rettype) fprintf(f, "\"%p\" -> \"%p\" [label=\"return type\"]\n", node, rettype);
+            if (body) fprintf(f, "\"%p\" -> \"%p\" [label=\"body\"]\n", node, body);
             break;
         }
         case AST_STATEMENT_BLOCK: {
@@ -224,29 +213,21 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
         case AST_STATEMENT_CONTINUE: break;
         case AST_STATEMENT_RETURN: {
             void *value = write_node_dot(node->parent, f);
-            if (value) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
-            }
+            if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
             break;
         }
         case AST_STATEMENT_INIT: {
             void *ident = write_node_dot(node->init_type, f);
             void *value = write_node_dot(node->init_value, f);
-            if (ident) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"type\"]\n", node, ident);
-            }
-            if (value) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
-            }
+            if (ident) fprintf(f, "\"%p\" -> \"%p\" [label=\"type\"]\n", node, ident);
+            if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
             break;
         };
         case AST_STATEMENT_EXPRESSION: break;
         case AST_STATEMENT_ASSIGN: break;
         case AST_EXPRESSION_PAREN: {
             void *value = write_node_dot(node->parent, f);
-            if (value) {
-                fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
-            }
+            if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
             break;
         }
         case AST_EXPRESSION_UNARY: break;

@@ -77,9 +77,9 @@ i32 main(i32 argc, cstring argv[]) {
         return 1;
     }
 
-
     printf("Global scope has %d entries\n", context->global->entries.length);
     write_program_dot(context->programs[0], "hello.dot");
+
 
     return 0;
 }
