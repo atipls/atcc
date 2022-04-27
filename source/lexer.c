@@ -129,7 +129,7 @@ Token *lexer_tokenize(string filename, Buffer data) {
             continue;
         }
 
-        if (isnumber(lexer_peek(&lexer))) {
+        if (isdigit(lexer_peek(&lexer))) {
             lexer_build_number(&lexer, current);
             continue;
         }
@@ -178,20 +178,52 @@ Token *lexer_tokenize(string filename, Buffer data) {
                     lexer_read(&lexer);
                     current->kind = TOKEN_AMPERSAND_EQUAL;
                 }
+                break;
             }
             case '|': {
                 current->kind = TOKEN_PIPE;
-                if (lexer_peek(&lexer) == '&') {
+                if (lexer_peek(&lexer) == '|') {
                     lexer_read(&lexer);
-                    current->kind = TOKEN_PIPE_EQUAL;
+                    current->kind = TOKEN_PIPE_PIPE;
                     if (lexer_peek(&lexer) == '=') {
                         lexer_read(&lexer);
-                        current->kind = TOKEN_PIPE_PIPE;
+                        current->kind = TOKEN_PIPE_PIPE_EQUAL;
                     }
                 } else if (lexer_peek(&lexer) == '=') {
                     lexer_read(&lexer);
-                    current->kind = TOKEN_PIPE_PIPE_EQUAL;
+                    current->kind = TOKEN_PIPE_EQUAL;
                 }
+                break;
+            }
+            case '<': {
+                current->kind = TOKEN_LESS;
+                if (lexer_peek(&lexer) == '<') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_LEFT_SHIFT;
+                    if (lexer_peek(&lexer) == '=') {
+                        lexer_read(&lexer);
+                        current->kind = TOKEN_LEFT_SHIFT_EQUAL;
+                    }
+                } else if (lexer_peek(&lexer) == '=') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_LESS_EQUAL;
+                }
+                break;
+            }
+            case '>': {
+                current->kind = TOKEN_GREATER;
+                if (lexer_peek(&lexer) == '>') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_RIGHT_SHIFT;
+                    if (lexer_peek(&lexer) == '=') {
+                        lexer_read(&lexer);
+                        current->kind = TOKEN_RIGHT_SHIFT_EQUAL;
+                    }
+                } else if (lexer_peek(&lexer) == '=') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_GREATER_EQUAL;
+                }
+                break;
             }
             default:
                 printf("Character: '%c'\n", character);

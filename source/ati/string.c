@@ -1,6 +1,13 @@
 #include "string.h"
 #include <string.h>
 
+string make_string(u64 length) {
+    string s = {};
+    s.data = (i8 *)malloc(length);
+    s.length = length;
+    return s;
+}
+
 string string_from_cstring(cstring s) {
     return rawstr(s, strlen((char *) s));
 }

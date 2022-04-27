@@ -43,15 +43,485 @@ static ASTNode *make_error(Parser *parser, string message) {
 
 static ASTNode *parse_typedecl(Parser *parser);
 static ASTNode *parse_expression(Parser *parser);
+static ASTNode *parse_statement_simple(Parser *parser);
 static ASTNode *parse_statement(Parser *parser);
+static ASTNode *parse_statement_block(Parser *parser);
 static ASTNode *parse_declaration(Parser *parser);
 
+static bool parser_is_unary(Parser *parser) {
+    return parser->current->kind == TOKEN_PLUS ||
+           parser->current->kind == TOKEN_MINUS ||
+           parser->current->kind == TOKEN_STAR ||
+           parser->current->kind == TOKEN_AMPERSAND ||
+           parser->current->kind == TOKEN_EXCLAMATION ||
+           parser->current->kind == TOKEN_TILDE;
+}
+
+static bool parser_is_mul(Parser *parser) {
+    return parser->current->kind == TOKEN_STAR ||
+           parser->current->kind == TOKEN_SLASH ||
+           parser->current->kind == TOKEN_PERCENT ||
+           parser->current->kind == TOKEN_AMPERSAND ||
+           parser->current->kind == TOKEN_LEFT_SHIFT ||
+           parser->current->kind == TOKEN_RIGHT_SHIFT;
+}
+
+static bool parser_is_add(Parser *parser) {
+    return parser->current->kind == TOKEN_PLUS ||
+           parser->current->kind == TOKEN_MINUS ||
+           parser->current->kind == TOKEN_CARET ||
+           parser->current->kind == TOKEN_PIPE;
+}
+
+static bool parser_is_cmp(Parser *parser) {
+    return parser->current->kind == TOKEN_EQUAL_EQUAL ||
+           parser->current->kind == TOKEN_EXCLAMATION_EQUAL ||
+           parser->current->kind == TOKEN_GREATER ||
+           parser->current->kind == TOKEN_GREATER_EQUAL ||
+           parser->current->kind == TOKEN_LESS ||
+           parser->current->kind == TOKEN_LESS_EQUAL;
+}
+
+static bool parser_is_assign(Parser *parser) {
+    return parser->current->kind == TOKEN_PLUS_EQUAL ||
+           parser->current->kind == TOKEN_MINUS_EQUAL ||
+           parser->current->kind == TOKEN_STAR_EQUAL ||
+           parser->current->kind == TOKEN_SLASH_EQUAL ||
+           parser->current->kind == TOKEN_PERCENT_EQUAL ||
+           parser->current->kind == TOKEN_AMPERSAND_EQUAL ||
+           parser->current->kind == TOKEN_PIPE_EQUAL ||
+           parser->current->kind == TOKEN_CARET_EQUAL ||
+           parser->current->kind == TOKEN_TILDE_EQUAL ||
+           parser->current->kind == TOKEN_AMPERSAND_AMPERSAND_EQUAL ||
+           parser->current->kind == TOKEN_PIPE_PIPE_EQUAL ||
+           parser->current->kind == TOKEN_LEFT_SHIFT_EQUAL ||
+           parser->current->kind == TOKEN_RIGHT_SHIFT_EQUAL ||
+           parser->current->kind == TOKEN_EQUAL;
+}
+
+static ASTNode *parse_expression_compound_field(Parser *parser) {
+    if (parser_consume(parser, TOKEN_OPEN_BRACKET)) {
+        ASTNode *compound_index = parse_expression(parser);
+        if (!parser_consume(parser, TOKEN_CLOSE_BRACKET))
+            return make_error(parser, str("Expected ']'"));
+        if (!parser_consume(parser, TOKEN_EQUAL))
+            return make_error(parser, str("Expected '='"));
+        ASTNode *node = make_ast(AST_EXPRESSION_COMPOUND_FIELD_INDEX);
+        node->compound_field_index = compound_index;
+        node->compound_field_target = parse_expression(parser);
+        return node;
+    } else {
+        ASTNode *target_or_init = parse_expression(parser);
+        if (parser_consume(parser, TOKEN_EQUAL)) {
+            if (target_or_init->kind != AST_EXPRESSION_IDENTIFIER)
+                return make_error(parser, str("Expected identifier for compound field assignment"));
+            ASTNode *node = make_ast(AST_EXPRESSION_COMPOUND_FIELD_NAME);
+            node->compound_field_name = target_or_init->value;
+            node->compound_field_target = parse_expression(parser);
+            return node;
+        } else {
+            ASTNode *node = make_ast(AST_EXPRESSION_COMPOUND_FIELD);
+            node->compound_field_target = target_or_init;
+            return node;
+        }
+    }
+}
+
+static ASTNode *parse_expression_compound(Parser *parser, ASTNode *type) {
+    if (!parser_consume(parser, TOKEN_OPEN_BRACE))
+        return make_error(parser, str("Expected '{' in compound expression"));
+    ASTNode **fields = null;
+    while (!parser_check(parser, TOKEN_CLOSE_BRACE)) {
+        vector_push(fields, parse_expression(parser));
+        if (!parser_consume(parser, TOKEN_COMMA))
+            break;
+    }
+    if (!parser_consume(parser, TOKEN_CLOSE_BRACE))
+        return make_error(parser, str("Expected '}' after compound expression"));
+    ASTNode *node = make_ast(AST_EXPRESSION_COMPOUND);
+    node->compound_type = type;
+    node->compound_fields = fields;
+    return node;
+}
+
+static ASTNode *parse_expression_unary(Parser *parser);
+static ASTNode *parse_expression_operand(Parser *parser) {
+    if (parser_check(parser, TOKEN_NUMBER) || parser_check(parser, TOKEN_STRING) || parser_check(parser, TOKEN_CHAR)) {
+        Token *token = parser_advance(parser);
+        ASTKind node_kind = token->kind == TOKEN_NUMBER ? AST_EXPRESSION_LITERAL_NUMBER : token->kind == TOKEN_STRING ? AST_EXPRESSION_LITERAL_STRING
+                                                                                                                      : AST_EXPRESSION_LITERAL_CHAR;
+        ASTNode *node = make_ast(node_kind);
+        node->literal_value = token->value;
+        node->literal_flags = token->flags;
+        return node;
+    }
+
+    if (parser_check(parser, TOKEN_IDENTIFIER)) {
+        Token *token = parser_advance(parser);
+        if (parser_check(parser, TOKEN_OPEN_BRACE)) {
+            ASTNode *compound_type = make_ast(AST_DECLARATION_TYPE_NAME);
+            compound_type->value = token->value;
+            return parse_expression_compound(parser, compound_type);
+        }
+
+        ASTNode *node = make_ast(AST_EXPRESSION_IDENTIFIER);
+        node->value = token->value;
+        return node;
+    }
+
+    if (parser_check(parser, TOKEN_OPEN_BRACE))
+        return parse_expression_compound(parser, null);
+
+    if (parser_consume(parser, TOKEN_OPEN_PAREN)) {
+        if (parser_consume(parser, TOKEN_COLON)) {
+            ASTNode *type = parse_typedecl(parser);
+            if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+                return make_error(parser, str("Expected ')'"));
+            if (!parser_consume(parser, TOKEN_OPEN_BRACE))
+                return make_error(parser, str("Expected '{'"));
+            return parse_expression_compound(parser, type);
+        } else {
+            ASTNode *node = make_ast(AST_EXPRESSION_PAREN);
+            node->parent = parse_expression(parser);
+            if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+                return make_error(parser, str("Expected ')' after expression"));
+            return node;
+        }
+    }
+
+    if (parser_consume(parser, TOKEN_KW_CAST)) {
+        if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+            return make_error(parser, str("Expected '(' after 'cast'"));
+        ASTNode *target_type = parse_typedecl(parser);
+        if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+            return make_error(parser, str("Expected ')' after 'cast'"));
+        ASTNode *node = make_ast(AST_EXPRESSION_CAST);
+        node->cast_type = target_type;
+        node->cast_target = parse_expression_unary(parser);
+        return node;
+    }
+
+    return make_error(parser, str("Unexpected token"));
+}
+
+static ASTNode *parse_expression_base(Parser *parser) {
+    ASTNode *node = parse_expression_operand(parser);
+    while (parser_check(parser, TOKEN_OPEN_PAREN) || parser_check(parser, TOKEN_OPEN_BRACKET) || parser_check(parser, TOKEN_DOT)) {
+        if (parser_consume(parser, TOKEN_OPEN_PAREN)) {
+            ASTNode **arguments = null;
+            if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
+                do {
+                    vector_push(arguments, parse_expression(parser));
+                } while (parser_consume(parser, TOKEN_COMMA));
+            }
+            if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+                return make_error(parser, str("Expected ')' after function call."));
+            ASTNode *new_node = make_ast(AST_EXPRESSION_CALL);
+            new_node->call_target = node;
+            new_node->call_arguments = arguments;
+            node = new_node;
+        } else if (parser_consume(parser, TOKEN_OPEN_BRACKET)) {
+            ASTNode *array_index = parse_expression(parser);
+            if (!parser_consume(parser, TOKEN_CLOSE_BRACKET))
+                return make_error(parser, str("Expected ']' after array index."));
+            ASTNode *new_node = make_ast(AST_EXPRESSION_INDEX);
+            new_node->index_target = node;
+            new_node->index_index = array_index;
+            node = new_node;
+        } else if (parser_consume(parser, TOKEN_DOT)) {
+            if (!parser_consume(parser, TOKEN_IDENTIFIER))
+                return make_error(parser, str("Expected identifier after '.'"));
+            ASTNode *new_node = make_ast(AST_EXPRESSION_FIELD);
+            new_node->field_target = node;
+            new_node->field_name = parser->previous->value;
+            node = new_node;
+        }
+    }
+
+    return node;
+}
+
+static ASTNode *parse_expression_unary(Parser *parser) {
+    if (parser_is_unary(parser)) {
+        ASTNode *node = make_ast(AST_EXPRESSION_UNARY);
+        node->unary_operator = parser_advance(parser)->kind;
+        node->unary_target = parse_expression_unary(parser);
+        return node;
+    }
+    return parse_expression_base(parser);
+}
+
+static ASTNode *parse_expression_mul(Parser *parser) {
+    ASTNode *node = parse_expression_unary(parser);
+    while (parser_is_mul(parser)) {
+        TokenKind binop = parser_advance(parser)->kind;
+        ASTNode *new_node = make_ast(AST_EXPRESSION_BINARY);
+        new_node->binary_operator = binop;
+        new_node->binary_left = node;
+        new_node->binary_right = parse_expression_unary(parser);
+        node = new_node;
+    }
+    return node;
+}
+
+static ASTNode *parse_expression_add(Parser *parser) {
+    ASTNode *node = parse_expression_mul(parser);
+    while (parser_is_add(parser)) {
+        TokenKind binop = parser_advance(parser)->kind;
+        ASTNode *new_node = make_ast(AST_EXPRESSION_BINARY);
+        new_node->binary_operator = binop;
+        new_node->binary_left = node;
+        new_node->binary_right = parse_expression_mul(parser);
+        node = new_node;
+    }
+    return node;
+}
+
+static ASTNode *parse_expression_cmp(Parser *parser) {
+    ASTNode *node = parse_expression_add(parser);
+    while (parser_is_cmp(parser)) {
+        TokenKind binop = parser_advance(parser)->kind;
+        ASTNode *new_node = make_ast(AST_EXPRESSION_BINARY);
+        new_node->binary_operator = binop;
+        new_node->binary_left = node;
+        new_node->binary_right = parse_expression_add(parser);
+        node = new_node;
+    }
+    return node;
+}
+
+static ASTNode *parse_expression_and(Parser *parser) {
+    ASTNode *node = parse_expression_cmp(parser);
+    while (parser_consume(parser, TOKEN_AMPERSAND_AMPERSAND)) {
+        ASTNode *new_node = make_ast(AST_EXPRESSION_BINARY);
+        new_node->binary_operator = TOKEN_AMPERSAND_AMPERSAND;
+        new_node->binary_left = node;
+        new_node->binary_right = parse_expression_cmp(parser);
+        node = new_node;
+    }
+    return node;
+}
+
+static ASTNode *parse_expression_or(Parser *parser) {
+    ASTNode *node = parse_expression_and(parser);
+    while (parser_consume(parser, TOKEN_PIPE_PIPE)) {
+        ASTNode *new_node = make_ast(AST_EXPRESSION_BINARY);
+        new_node->binary_operator = TOKEN_PIPE_PIPE;
+        new_node->binary_left = node;
+        new_node->binary_right = parse_expression_and(parser);
+        node = new_node;
+    }
+    return node;
+}
+
 ASTNode *parse_expression(Parser *parser) {
+    ASTNode *node = parse_expression_or(parser);
+    if (parser_consume(parser, TOKEN_QUESTION)) {
+        ASTNode *ternary_true = parse_expression(parser);
+        if (!parser_consume(parser, TOKEN_COLON))
+            return make_error(parser, str("Expected ':' after ternary expression"));
+        ASTNode *ternary_false = parse_expression(parser);
+        ASTNode *new_node = make_ast(AST_EXPRESSION_TERNARY);
+        new_node->ternary_condition = node;
+        new_node->ternary_true = ternary_true;
+        new_node->ternary_false = ternary_false;
+        node = new_node;
+    }
+    return node;
+}
+
+static ASTNode *parse_expression_paren(Parser *parser) {
+    if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+        return make_error(parser, str("Expected '('"));
+    ASTNode *node = parse_expression(parser);
+    if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+        return make_error(parser, str("Expected ')'"));
+    return node;
+}
+
+static ASTNode *parse_statement_init(Parser *parser, ASTNode *expression) {
+    if (parser_consume(parser, TOKEN_COLON_EQUAL)) {
+        if (expression->kind != AST_EXPRESSION_IDENTIFIER)
+            return make_error(parser, str(":= must be used on an identifier"));
+        ASTNode *node = make_ast(AST_STATEMENT_INIT);
+        node->init_name = expression->value;
+        node->init_value = parse_expression(parser);
+        return node;
+    }
+
+    if (parser_consume(parser, TOKEN_COLON)) {
+        if (expression->kind != AST_EXPRESSION_IDENTIFIER)
+            return make_error(parser, str(": must be used on an identifier"));
+        ASTNode *node = make_ast(AST_STATEMENT_INIT);
+        node->init_name = expression->value;
+        node->init_type = parse_typedecl(parser);
+        if (parser_consume(parser, TOKEN_EQUAL)) {
+            node->init_is_nothing = parser_consume(parser, TOKEN_DOT_DOT_DOT) != null;
+            if (!node->init_is_nothing)
+                node->init_value = parse_expression(parser);
+        }
+        return node;
+    }
+
+    return null;
+}
+
+static ASTNode *parse_statement_if(Parser *parser) {
+    if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+        return make_error(parser, str("Expected '(' after 'if'"));
+    ASTNode *condition = parse_expression(parser);
+    ASTNode *expression = parse_statement_init(parser, condition);
+    if (expression) condition = parser_consume(parser, TOKEN_SEMICOLON) ? parse_expression(parser) : null;
+    if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+        return make_error(parser, str("Expected ')' after 'if' condition"));
+
+    ASTNode *if_true = parse_statement_block(parser);
+    ASTNode *if_false = parser_consume(parser, TOKEN_KW_ELSE) ? parse_statement_block(parser) : null;
+
+    ASTNode *node = make_ast(AST_STATEMENT_IF);
+    node->if_expression = expression;
+    node->if_condition = condition;
+    node->if_true = if_true;
+    node->if_false = if_false;
+    return node;
+}
+
+static ASTNode *parse_statement_while(Parser *parser) {
+    ASTNode *node = make_ast(AST_STATEMENT_WHILE);
+    node->while_condition = parse_expression_paren(parser);
+    node->while_body = parse_statement_block(parser);
+    return node;
+}
+
+static ASTNode *parse_statement_do_while(Parser *parser) {
+    ASTNode *body = parse_statement_block(parser);
+    if (!parser_consume(parser, TOKEN_KW_WHILE))
+        return make_error(parser, str("Expected 'while' after 'do'"));
+    ASTNode *condition = parse_expression_paren(parser);
+    if (!parser_consume(parser, TOKEN_SEMICOLON))
+        return make_error(parser, str("Expected ';' after 'while' condition"));
+    ASTNode *node = make_ast(AST_STATEMENT_DO_WHILE);
+    node->while_condition = condition;
+    node->while_body = body;
+    return node;
+}
+
+static ASTNode *parse_statement_for(Parser *parser) {
+    ASTNode *initializer = null;
+    ASTNode *condition = null;
+    ASTNode *increment = null;
+
+    if (!parser_check(parser, TOKEN_OPEN_BRACE)) {
+        if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+            return make_error(parser, str("Expected '(' after 'for'"));
+        if (!parser_check(parser, TOKEN_SEMICOLON))
+            initializer = parse_statement_simple(parser);
+        if (parser_consume(parser, TOKEN_SEMICOLON)) {
+            if (!parser_check(parser, TOKEN_SEMICOLON))
+                condition = parse_expression(parser);
+            if (parser_consume(parser, TOKEN_SEMICOLON)) {
+                if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
+                    increment = parse_statement_simple(parser);
+                    if (increment->kind == AST_STATEMENT_INIT)
+                        return make_error(parser, str("Initializers are not allowed in for's increment"));
+                }
+            }
+        }
+
+        if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+            return make_error(parser, str("Expected ')' after 'for' condition"));
+    }
+
+    ASTNode *node = make_ast(AST_STATEMENT_FOR);
+    node->for_initializer = initializer;
+    node->for_condition = condition;
+    node->for_increment = increment;
+    node->for_body = parse_statement_block(parser);
+    return node;
+}
+
+static ASTNode *parse_statement_switch(Parser *parser) {
+    ASTNode *expression = parse_expression_paren(parser);
+    if (!parser_consume(parser, TOKEN_OPEN_BRACE))
+        return make_error(parser, str("Expected '{' after 'switch'"));
+
     return make_error(parser, str("Not implemented"));
 }
 
-ASTNode *parse_statement(Parser *parser) {
-    return make_error(parser, str("Not implemented"));
+static ASTNode *parse_statement_break_continue(Parser *parser, TokenKind kind) {
+    ASTNode *node = make_ast(kind == TOKEN_KW_BREAK ? AST_STATEMENT_BREAK : AST_STATEMENT_CONTINUE);
+    if (parser_consume(parser, TOKEN_SEMICOLON))
+        return node;
+
+    if (kind == TOKEN_KW_BREAK)
+        return make_error(parser, str("Expected ';' after 'break'"));
+    return make_error(parser, str("Expected ';' after 'continue'"));
+}
+
+static ASTNode *parse_statement_return(Parser *parser) {
+    ASTNode *node = make_ast(AST_STATEMENT_RETURN);
+    if (parser_check(parser, TOKEN_SEMICOLON))
+        return node;
+    node->parent = parse_expression(parser);
+    if (!parser_consume(parser, TOKEN_SEMICOLON))
+        return make_error(parser, str("Expected ';' after 'return'"));
+    return node;
+}
+
+static ASTNode *parse_statement_simple(Parser *parser) {
+    ASTNode *expression = parse_expression(parser);
+    ASTNode *statement = parse_statement_init(parser, expression);
+    if (!statement) {
+        if (parser_is_assign(parser)) {
+            TokenKind assign = parser_advance(parser)->kind;
+            statement = make_ast(AST_STATEMENT_ASSIGN);
+            statement->assign_operator = assign;
+            statement->assign_target = expression;
+            statement->assign_value = parse_expression(parser);
+        } else {
+            statement = make_ast(AST_STATEMENT_EXPRESSION);
+            statement->parent = expression;
+        }
+    }
+
+    return statement;
+}
+
+static ASTNode *parse_statement(Parser *parser) {
+    if (parser_consume(parser, TOKEN_KW_IF))
+        return parse_statement_if(parser);
+    if (parser_consume(parser, TOKEN_KW_WHILE))
+        return parse_statement_while(parser);
+    if (parser_consume(parser, TOKEN_KW_DO))
+        return parse_statement_do_while(parser);
+    if (parser_consume(parser, TOKEN_KW_FOR))
+        return parse_statement_for(parser);
+    if (parser_consume(parser, TOKEN_KW_SWITCH))
+        return parse_statement_switch(parser);
+    if (parser_consume(parser, TOKEN_KW_BREAK))
+        return parse_statement_break_continue(parser, TOKEN_KW_BREAK);
+    if (parser_consume(parser, TOKEN_KW_CONTINUE))
+        return parse_statement_break_continue(parser, TOKEN_KW_CONTINUE);
+    if (parser_consume(parser, TOKEN_KW_RETURN))
+        return parse_statement_return(parser);
+    if (parser_check(parser, TOKEN_OPEN_BRACE))
+        return parse_statement_block(parser);
+    ASTNode *simple = parse_statement_simple(parser);
+    if (!parser_consume(parser, TOKEN_SEMICOLON))
+        return make_error(parser, str("Expected ';' after statement"));
+    return simple;
+}
+
+static ASTNode *parse_statement_block(Parser *parser) {
+    if (parser_consume(parser, TOKEN_OPEN_BRACE)) {
+        ASTNode *node = make_ast(AST_STATEMENT_BLOCK);
+        while (!parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_EOF))
+            vector_push(node->statements, parse_statement(parser));
+        if (!parser_consume(parser, TOKEN_CLOSE_BRACE))
+            return make_error(parser, str("Expected '}' after block"));
+        return node;
+    }
+    return parse_statement(parser);
 }
 
 static ASTNode *parse_typedecl_argument(Parser *parser) {
@@ -146,19 +616,49 @@ static ASTNode *parse_declaration_alias(Parser *parser) {
     if (!parser_consume(parser, TOKEN_EQUAL))
         return make_error(parser, str("Expected '=' after 'alias name'."));
     ASTNode *node = make_ast(AST_DECLARATION_ALIAS);
-    node->alias.name = new_name->value;
-    node->alias.type = parse_typedecl(parser);
+    node->alias_name = new_name->value;
+    node->alias_type = parse_typedecl(parser);
     if (!parser_consume(parser, TOKEN_SEMICOLON))
         return make_error(parser, str("Expected ';' after 'alias'."));
     return node;
 }
 
 static ASTNode *parse_declaration_aggregate(Parser *parser) {
-    return make_error(parser, str("Not implemented"));
+    return make_error(parser, str("Not implemented (aggregate)."));
 }
 
 static ASTNode *parse_declaration_variable(Parser *parser) {
-    return make_error(parser, str("Not implemented"));
+    Token *variable_kind = parser->previous;
+    ASTNode *node = make_ast(AST_DECLARATION_VARIABLE);
+    node->variable_is_const = variable_kind->kind == TOKEN_KW_CONST;
+    if (!parser_consume(parser, TOKEN_IDENTIFIER))
+        return make_error(parser, str("Expected identifier after 'var' or 'const'."));
+    node->variable_name = parser->previous->value;
+
+    if (parser_consume(parser, TOKEN_COLON_EQUAL)) {
+        node->variable_type = null;
+        node->variable_initializer = parse_expression(parser);
+    } else if (parser_consume(parser, TOKEN_COLON)) {
+        node->variable_type = parse_typedecl(parser);
+        if (parser_consume(parser, TOKEN_EQUAL))
+            node->variable_initializer = parse_expression(parser);
+    }
+
+    if (!parser_consume(parser, TOKEN_SEMICOLON))
+        return make_error(parser, str("Expected ';' after 'var' or 'const' declaration."));
+
+    return node;
+}
+
+static ASTNode *parse_declaration_function_parameter(Parser *parser) {
+    ASTNode *node = make_ast(AST_DECLARATION_FUNCTION_PARAMETER);
+    if (!parser_consume(parser, TOKEN_IDENTIFIER))
+        return make_error(parser, str("Expected identifier for 'function parameter'."));
+    node->function_parameter_name = parser->previous->value;
+    if (!parser_consume(parser, TOKEN_COLON))
+        return make_error(parser, str("Expected ':' after 'function parameter'."));
+    node->function_parameter_type = parse_typedecl(parser);
+    return node;
 }
 
 static ASTNode *parse_declaration_function(Parser *parser) {
@@ -171,13 +671,33 @@ static ASTNode *parse_declaration_function(Parser *parser) {
     ASTNode **parameters = null;
     bool is_variadic = false;
     if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
-        do {
-            // TODO: Check for '...'
-
-        } while (parser_consume(parser, TOKEN_COMMA));
+        vector_push(parameters, parse_declaration_function_parameter(parser));
+        while (parser_consume(parser, TOKEN_COMMA)) {
+            if (parser_consume(parser, TOKEN_DOT_DOT_DOT)) {
+                if (is_variadic)
+                    return make_error(parser, str("Variadic parameter can only be declared once."));
+                is_variadic = true;
+            } else {
+                if (is_variadic)
+                    return make_error(parser, str("Variadic parameter must be the last parameter."));
+                vector_push(parameters, parse_declaration_function_parameter(parser));
+            }
+        }
     }
 
-    return make_error(parser, str("Not implemented"));
+    if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+        return make_error(parser, str("Expected ')' after function parameters."));
+
+    ASTNode *return_type = null;
+    if (parser_consume(parser, TOKEN_COLON))
+        return_type = parse_typedecl(parser);
+
+    ASTNode *node = make_ast(AST_DECLARATION_FUNCTION);
+    node->function_name = name->value;
+    node->function_parameters = parameters;
+    node->function_return_type = return_type;
+    node->function_body = parser_consume(parser, TOKEN_SEMICOLON) ? null : parse_statement_block(parser);
+    return node;
 }
 
 ASTNode *parse_declaration(Parser *parser) {
@@ -206,6 +726,9 @@ ASTNode *parse_program(Token *tokens) {
             parser_advance(parser);
             continue;
         }
+
+        if (declaration->kind == AST_ERROR)
+            printf("Decl error: %.*s\n", (i32) declaration->value.length, declaration->value.data);
 
         vector_push(program->declarations, declaration);
     }

@@ -1,0 +1,43 @@
+alias bool = i32;
+
+const true  := cast(bool) 1;
+const false := cast(bool) 0;
+
+var aGlobal: u64;
+
+fun Test0() {}
+fun Test1(a1: i32) {}
+fun Test2(a1: i32): i32 { return 0; }
+fun Test3(a1: i32): i32 { return 5 + a1; }
+fun Test4(a1: i32): i32 {
+	locVar := a1;
+	return locVar;
+}
+fun Test051(): bool { return 1 || 2; }
+fun Test052(): bool { return 1 && 2; }
+fun Test053(): bool { return true ? 1 : 2; }
+fun Test054(): bool { return (true ? 1 : 2) || 2; }
+fun Test055(): bool { return (true ? 1 : 2) && 2; }
+fun Test056(): bool { return (true ? 1 : 2) || (true ? 1 : 2); }
+fun Test057(): bool { return (true ? 1 : 2) && (true ? 1 : 2); }
+fun Test5(hello: i32): i32 {
+	test := hello - 1;
+	if (test == -1) {
+		return 3;
+	} else if (test == 0) {
+		return 4;
+	}
+	return 8;
+}
+fun Test51(hello: i32): i32 {
+	if (hello >= 20 && hello <= 30) {
+		return hello - 1;
+	} else {
+		return hello + 1;
+	}
+}
+fun Test52(hello: i32): i32 {
+	hey := hello;
+	hey = 10;
+	return hey;
+}

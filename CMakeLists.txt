@@ -11,6 +11,6 @@ add_executable(atcc
         source/ati/string.h
         source/ati/utils.c
         source/ati/utils.h
-        source/parser.c)
+        source/parser.c source/dot.c source/sema.c source/ati/table.c source/ati/table.h source/type.c)
 
 

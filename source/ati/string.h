@@ -9,8 +9,12 @@ typedef struct string {
     u64 length;
 } string;
 
+#define strp(s) (i32)s.length, s.data
+
 #define str(s) (string) { .data = (i8 *) (s), .length = sizeof(s) - 1 }
 #define rawstr(d, l) (string) { .data = (i8 *) (d), .length = (l) }
+
+string make_string(u64 length);
 
 string string_from_cstring(cstring s);
 cstring string_to_cstring(string s);
