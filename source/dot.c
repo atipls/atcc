@@ -256,7 +256,7 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
     return node;
 }
 
-__attribute__((unused)) void write_program_dot(ASTNode *node, cstring filename) {
+void write_program_dot(ASTNode *node, cstring filename) {
     FILE *f = fopen(filename, "w");
     if (f == NULL) {
         fprintf(stderr, "Could not open file %s for writing\n", filename);

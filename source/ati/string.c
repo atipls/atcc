@@ -2,8 +2,8 @@
 #include <string.h>
 
 string make_string(u64 length) {
-    string s = {};
-    s.data = (i8 *)malloc(length);
+    string s = {0};
+    s.data = (i8 *) malloc(length);
     s.length = length;
     return s;
 }

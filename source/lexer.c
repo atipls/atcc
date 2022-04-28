@@ -33,33 +33,35 @@ static i8 lexer_peek(Lexer *lexer) {
 }
 
 static void lexer_build_identifier(Lexer *lexer, Token *token) {
+#define initstr(s) { .data = (i8 *) (s), .length = sizeof(s) - 1 }
     static struct {
         string ident;
         TokenKind kind;
     } keywords[] = {
-            {str("alias"), TOKEN_KW_ALIAS},
-            {str("alignof"), TOKEN_KW_ALIGNOF},
-            {str("break"), TOKEN_KW_BREAK},
-            {str("case"), TOKEN_KW_CASE},
-            {str("cast"), TOKEN_KW_CAST},
-            {str("const"), TOKEN_KW_CONST},
-            {str("continue"), TOKEN_KW_CONTINUE},
-            {str("default"), TOKEN_KW_DEFAULT},
-            {str("do"), TOKEN_KW_DO},
-            {str("else"), TOKEN_KW_ELSE},
-            {str("enum"), TOKEN_KW_ENUM},
-            {str("for"), TOKEN_KW_FOR},
-            {str("fun"), TOKEN_KW_FUN},
-            {str("if"), TOKEN_KW_IF},
-            {str("offsetof"), TOKEN_KW_OFFSETOF},
-            {str("return"), TOKEN_KW_RETURN},
-            {str("sizeof"), TOKEN_KW_SIZEOF},
-            {str("struct"), TOKEN_KW_STRUCT},
-            {str("switch"), TOKEN_KW_SWITCH},
-            {str("union"), TOKEN_KW_UNION},
-            {str("var"), TOKEN_KW_VAR},
-            {str("while"), TOKEN_KW_WHILE},
+            {initstr("alias"), TOKEN_KW_ALIAS},
+            {initstr("alignof"), TOKEN_KW_ALIGNOF},
+            {initstr("break"), TOKEN_KW_BREAK},
+            {initstr("case"), TOKEN_KW_CASE},
+            {initstr("cast"), TOKEN_KW_CAST},
+            {initstr("const"), TOKEN_KW_CONST},
+            {initstr("continue"), TOKEN_KW_CONTINUE},
+            {initstr("default"), TOKEN_KW_DEFAULT},
+            {initstr("do"), TOKEN_KW_DO},
+            {initstr("else"), TOKEN_KW_ELSE},
+            {initstr("enum"), TOKEN_KW_ENUM},
+            {initstr("for"), TOKEN_KW_FOR},
+            {initstr("fun"), TOKEN_KW_FUN},
+            {initstr("if"), TOKEN_KW_IF},
+            {initstr("offsetof"), TOKEN_KW_OFFSETOF},
+            {initstr("return"), TOKEN_KW_RETURN},
+            {initstr("sizeof"), TOKEN_KW_SIZEOF},
+            {initstr("struct"), TOKEN_KW_STRUCT},
+            {initstr("switch"), TOKEN_KW_SWITCH},
+            {initstr("union"), TOKEN_KW_UNION},
+            {initstr("var"), TOKEN_KW_VAR},
+            {initstr("while"), TOKEN_KW_WHILE},
     };
+#undef initstr
 
     i8 *buffer = null;
     while (isalnum(lexer_peek(lexer)) || lexer_peek(lexer) == '_')

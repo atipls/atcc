@@ -292,7 +292,7 @@ struct ASTNode {
 };
 
 ASTNode *parse_program(Token *tokens);
-__attribute__((unused)) void write_program_dot(ASTNode *node, cstring filename);
+void write_program_dot(ASTNode *node, cstring filename);
 
 #define POINTER_SIZE 8
 
