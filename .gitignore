@@ -78,3 +78,6 @@ fabric.properties
 build/
 debug/
 .DS_Store
+/.vs
+/.idea/codeStyles
+/CMakeSettings.json

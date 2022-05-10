@@ -47,7 +47,8 @@ struct BCType {
     BCValue count;
     BCType subtype;
     BCAggregate *members;
-    BCType *parameters;
+    BCType *params;
+    u32 num_params;
 };
 
 extern BCType bc_type_void;
@@ -59,7 +60,7 @@ extern BCType bc_type_f32, bc_type_f64;
 
 BCType bc_type_pointer(BCType type);
 BCType bc_type_array(BCType type, BCValue size);
-BCType bc_type_function(BCType result, BCType *params);
+BCType bc_type_function(BCType result, BCType *params, u32 num_params);
 BCType bc_type_aggregate(BCType type, string name, u32 offset);
 
 typedef enum {
@@ -96,7 +97,7 @@ typedef enum {
 } BCOpcode;
 
 struct BCCode {
-    BCBlock *block;
+    BCBlock block;
     BCOpcode opcode;
     u32 flags;
 
@@ -110,7 +111,7 @@ struct BCBlock {
 };
 
 struct BCFunction {
-    BCType *signature;
+    BCType signature;
     string name;
 
     BCBlock *blocks;
@@ -122,4 +123,4 @@ struct BCContext {
 
 BCContext bc_context_initialize();
 
-BCFunction bc_function_create(BCContext *context, BCType signature, string name);
+BCFunction bc_function_create(BCContext context, BCType signature, string name);

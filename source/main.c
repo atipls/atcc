@@ -58,6 +58,7 @@ i32 main(i32 argc, cstring argv[]) {
         BCType bc_main_type = bc_type_function(bc_type_i32, (BCType[]){bc_type_i32, bc_type_i32}, 2);
         BCFunction bc_main = bc_function_create(bc_context, bc_main_type, str("main"));
 
+        printf("%.*s", (i32) bc_main->name.length, bc_main->name.data);
 
 #if 0
         jit_type_t params[2] = {jit_type_int, jit_type_int};

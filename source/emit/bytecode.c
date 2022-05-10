@@ -30,16 +30,28 @@ BCType bc_type_array(BCType type, BCValue size) {
     return array;
 }
 
+BCType bc_type_function(BCType result, BCType* params, u32 num_params) {
+    BCType function = make(struct BCType);
+    function->kind = BC_TYPE_FUNCTION;
+    function->size = function->alignment = POINTER_SIZE;
+    function->subtype = result;
+    function->params = params;
+    function->num_params = num_params;
+    return function;
+}
+
 BCContext bc_context_initialize() {
     BCContext context = make(struct BCContext);
     // lol
     return context;
 }
 
-BCFunction bc_function_create(BCContext *context, BCType signature, string name) {
+BCFunction bc_function_create(BCContext context, BCType signature, string name) {
     BCFunction function = make(struct BCFunction);
 
     function->signature = signature;
     function->name = name;
+
+    return function;
 
 }
