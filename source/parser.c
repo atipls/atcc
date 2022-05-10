@@ -624,6 +624,8 @@ static ASTNode *parse_declaration_alias(Parser *parser) {
 }
 
 static ASTNode *parse_declaration_aggregate(Parser *parser) {
+    TokenKind aggregate = parser->previous->kind;
+    
     return make_error(parser, str("Not implemented (aggregate)."));
 }
 

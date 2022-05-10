@@ -1,6 +1,7 @@
 #include "atcc.h"
 #include "ati/table.h"
 #include "ati/utils.h"
+#include "emit/bytecode.h"
 #include <assert.h>
 
 struct {
@@ -50,7 +51,22 @@ i32 main(i32 argc, cstring argv[]) {
     vector_push(options.inputs, str("sample/simple.aa"));
 #endif
 
-    SemanticContext *context = sema_initialize();
+    SemanticContext *sema_context = sema_initialize();
+    BCContext bc_context = bc_context_initialize();
+
+    do {
+        BCType bc_main_type = bc_type_function(bc_type_i32, (BCType[]){bc_type_i32, bc_type_i32}, 2);
+        BCFunction bc_main = bc_function_create(bc_context, bc_main_type, str("main"));
+
+
+#if 0
+        jit_type_t params[2] = {jit_type_int, jit_type_int};
+        jit_type_t signature = jit_type_create_signature(
+                jit_abi_cdecl, jit_type_int, params, 2, 1);
+        jit_function_t F = jit_function_create(context, signature);
+#endif
+
+    } while (0);
 
     vector_foreach(string, filename, options.inputs) {
         Buffer buffer = read_file(*filename);
@@ -64,22 +80,21 @@ i32 main(i32 argc, cstring argv[]) {
         assert(program->kind == AST_PROGRAM);
         // write_program_dot(program, "hello.dot");
 
-        if (!sema_register_program(context, program)) {
+        if (!sema_register_program(sema_context, program)) {
             fprintf(stderr, "Registering declarations failed: \n");
-            print_semantic_errors(context->errors);
+            print_semantic_errors(sema_context->errors);
             return 1;
         }
     }
 
-    if (!sema_analyze(context)) {
+    if (!sema_analyze(sema_context)) {
         fprintf(stderr, "Semantic analysis failed: \n");
-        print_semantic_errors(context->errors);
+        print_semantic_errors(sema_context->errors);
         return 1;
     }
 
-    printf("Global scope has %d entries\n", context->global->entries.length);
-    write_program_dot(context->programs[0], "hello.dot");
-
+    printf("Global scope has %d entries\n", sema_context->global->entries.length);
+    write_program_dot(sema_context->programs[0], "hello.dot");
 
     return 0;
 }

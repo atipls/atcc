@@ -294,8 +294,6 @@ struct ASTNode {
 ASTNode *parse_program(Token *tokens);
 void write_program_dot(ASTNode *node, cstring filename);
 
-#define POINTER_SIZE 8
-
 typedef enum {
     TYPE_NONE,
     TYPE_VOID,

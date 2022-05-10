@@ -63,3 +63,5 @@ typedef struct {
         f64 f64;
     };
 } Variant;
+
+#define POINTER_SIZE 8
