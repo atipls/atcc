@@ -76,6 +76,7 @@ SemanticContext *sema_initialize() {
     context->type_u64 = make_type(TYPE_U64, 8, 8);
     context->type_f32 = make_type(TYPE_F32, 4, 4);
     context->type_f64 = make_type(TYPE_F64, 8, 8);
+    context->type_string = make_type(TYPE_STRING, 1, 1);
 
     string_table_set(&context->global->entries, str("void"), make_builtin(context->type_void));
     string_table_set(&context->global->entries, str("i8"), make_builtin(context->type_i8));

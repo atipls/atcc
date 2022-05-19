@@ -24,6 +24,13 @@ struct BCValue {
     u64 storage;
 };
 
+BCValue bc_value_make(BCFunction function, BCType type);
+
+BCValue bc_value_make_consti(BCFunction function, BCType type, u64 value);
+BCValue bc_value_make_constf(BCFunction function, BCType type, f64 value);
+
+BCValue bc_value_get_parameter(BCFunction function, u32 index);
+
 typedef enum {
     BC_TYPE_BASE,
     BC_TYPE_POINTER,
@@ -107,14 +114,18 @@ struct BCCode {
 };
 
 struct BCBlock {
+    BCBlock prev, next;
+
     BCCode *code;
+    BCValue result;
 };
 
 struct BCFunction {
     BCType signature;
     string name;
 
-    BCBlock *blocks;
+    BCBlock first_block;
+    BCBlock current_block;
 };
 
 struct BCContext {
@@ -124,3 +135,21 @@ struct BCContext {
 BCContext bc_context_initialize();
 
 BCFunction bc_function_create(BCContext context, BCType signature, string name);
+BCBlock bc_function_set_block(BCFunction function, BCBlock block);
+BCBlock bc_function_get_block(BCFunction function);
+BCBlock bc_function_get_initializer(BCFunction function);
+
+BCBlock bc_block_create(BCFunction function);
+
+BCCode bc_insn_make(BCBlock block);
+
+BCValue bc_insn_nop(BCFunction function);
+
+BCValue bc_insn_load(BCFunction function, BCValue dest, BCValue src);
+BCValue bc_insn_load_address(BCFunction function, BCValue dest, BCValue src);
+BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue src);
+
+BCValue bc_insn_jump(BCFunction function, BCBlock block);
+BCValue bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block);
+
+BCValue bc_insn_return(BCFunction function, BCValue value);

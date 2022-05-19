@@ -58,15 +58,44 @@ i32 main(i32 argc, cstring argv[]) {
         BCType bc_main_type = bc_type_function(bc_type_i32, (BCType[]){bc_type_i32, bc_type_i32}, 2);
         BCFunction bc_main = bc_function_create(bc_context, bc_main_type, str("main"));
 
+        BCValue u, v, t;
+
+        u = bc_value_get_parameter(bc_main, 0);
+        v = bc_value_get_parameter(bc_main, 1);
+        t = bc_value_make(bc_main, bc_type_i32);
+
+        BCBlock label_p1 = bc_block_create(bc_main);
+        BCBlock label_p2 = bc_block_create(bc_main);
+
+        BCValue zero = bc_value_make_consti(bc_main, bc_type_i32, 0);
+
+        bc_function_set_block(bc_main, label_p1);
+
+        BCValue compare_v = bc_insn_equals(bc_main, v, zero);
+        bc_insn_jump_if(bc_main, compare_v, label_p2);
+
+        bc_insn_store(bc_main, t, u);
+        bc_insn_store(bc_main, u, v);
+
+        BCValue remainder = bc_insn_mod(bc_main, u, v);
+        bc_insn_store(bc_main, v, remainder);
+
+        bc_insn_jump(bc_main, label_p1);
+
+        bc_function_set_block(bc_main, label_p2);
+
+        BCBlock label_p3 = bc_block_create(bc_main);
+        BCValue compare_v = bc_insn_greater_equals(bc_main, u, zero);
+        bc_insn_jump_if(bc_main, compare_v, label_p3);
+
+        BCValue minus_u = bc_insn_minus(bc_main, zero, u);
+        bc_insn_return(bc_main, minus_u);
+
+        bc_function_set_block(bc_main, label_p3);
+        bc_insn_return(bc_main, u);
+
+        // bc_function_dump(bc_main);
         printf("%.*s", (i32) bc_main->name.length, bc_main->name.data);
-
-#if 0
-        jit_type_t params[2] = {jit_type_int, jit_type_int};
-        jit_type_t signature = jit_type_create_signature(
-                jit_abi_cdecl, jit_type_int, params, 2, 1);
-        jit_function_t F = jit_function_create(context, signature);
-#endif
-
     } while (0);
 
     vector_foreach(string, filename, options.inputs) {
