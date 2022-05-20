@@ -3,6 +3,9 @@
 #include "ati/basic.h"
 #include "ati/string.h"
 #include "ati/table.h"
+#include "emit/bytecode.h"
+
+#include <assert.h>
 
 typedef struct {
     string file;
@@ -49,7 +52,7 @@ typedef enum {
     TOKEN_LEFT_SHIFT,
     TOKEN_RIGHT_SHIFT,
     TOKEN_SEMICOLON,
-    TOKEN_DOT_DOT_DOT,
+    TOKEN_DOT_DOT,
 
     TOKEN_PLUS_EQUAL,
     TOKEN_MINUS_EQUAL,
@@ -122,6 +125,8 @@ typedef enum {
     AST_DECLARATION_TYPE_FUNCTION,
     AST_DECLARATION_ALIAS,
     AST_DECLARATION_AGGREGATE,
+    AST_DECLARATION_AGGREGATE_FIELD,
+    AST_DECLARATION_AGGREGATE_CHILD,
     AST_DECLARATION_VARIABLE,
     AST_DECLARATION_FUNCTION_PARAMETER,
     AST_DECLARATION_FUNCTION,
@@ -132,6 +137,8 @@ typedef enum {
     AST_STATEMENT_DO_WHILE,
     AST_STATEMENT_FOR,
     AST_STATEMENT_SWITCH,
+    AST_STATEMENT_SWITCH_CASE,
+    AST_STATEMENT_SWITCH_PATTERN,
     AST_STATEMENT_BREAK,
     AST_STATEMENT_CONTINUE,
     AST_STATEMENT_RETURN,
@@ -196,6 +203,21 @@ struct ASTNode {
         };
 
         struct {
+            string aggregate_name;
+            ASTNode *aggregate;
+        };
+
+        struct {
+            TokenKind aggregate_kind;
+            ASTNode **aggregate_items;
+        };
+
+        struct {
+            string *aggregate_names;
+            ASTNode *aggregate_type;
+        };
+
+        struct {
             string variable_name;
             ASTNode *variable_type;
             ASTNode *variable_initializer;
@@ -221,7 +243,21 @@ struct ASTNode {
             ASTNode *for_body;
         };
 
-        // TODO: switch
+        struct {
+            ASTNode *switch_expression;
+            ASTNode **switch_cases;
+        };
+
+        struct {
+            ASTNode **switch_case_patterns;
+            ASTNode *switch_case_body;
+            bool switch_case_is_default;
+        };
+
+        struct {
+            ASTNode *switch_pattern_start;
+            ASTNode *switch_pattern_end;
+        };
 
         struct {
             string init_name;
@@ -256,6 +292,10 @@ struct ASTNode {
         struct {
             string literal_value;
             TokenFlag literal_flags;
+            union {
+                u64 literal_as_u64;
+                f64 literal_as_f64;
+            };
         };
 
         struct {
@@ -393,3 +433,21 @@ typedef struct {
 SemanticContext *sema_initialize();
 bool sema_register_program(SemanticContext *context, ASTNode *program);
 bool sema_analyze(SemanticContext *context);
+
+typedef struct {
+    SemanticContext *sema;
+    BCContext bc;
+
+    StringTable functions;
+    StringTable globals;
+    StringTable locals;
+
+    BCFunction function;
+    BCFunction initializer;
+
+    BCBlock break_target;
+    BCBlock continue_target;
+} BuildContext;
+
+BuildContext *build_initialize(SemanticContext *sema);
+bool build_bytecode(BuildContext *context);

@@ -48,15 +48,16 @@ i32 main(i32 argc, cstring argv[]) {
 #else
     (void) argc;
     (void) argv;
-    vector_push(options.inputs, str("sample/simple.aa"));
+    vector_push(options.inputs, str("sample/hello.aa"));
 #endif
 
     SemanticContext *sema_context = sema_initialize();
-    BCContext bc_context = bc_context_initialize();
 
-    do {
+#if 0
+        do {
+        BCContext bc_context = bc_context_initialize();
         BCType bc_main_type = bc_type_function(bc_type_i32, (BCType[]){bc_type_i32, bc_type_i32}, 2);
-        BCFunction bc_main = bc_function_create(bc_context, bc_main_type, str("main"));
+        BCFunction bc_main = bc_function_create(bc_context, bc_main_type, str("GetGCD"));
 
         BCValue u, v, t;
 
@@ -64,14 +65,14 @@ i32 main(i32 argc, cstring argv[]) {
         v = bc_value_get_parameter(bc_main, 1);
         t = bc_value_make(bc_main, bc_type_i32);
 
-        BCBlock label_p1 = bc_block_create(bc_main);
-        BCBlock label_p2 = bc_block_create(bc_main);
+        BCBlock label_p1 = bc_block_make(bc_main);
+        BCBlock label_p2 = bc_block_make(bc_main);
 
         BCValue zero = bc_value_make_consti(bc_main, bc_type_i32, 0);
 
         bc_function_set_block(bc_main, label_p1);
 
-        BCValue compare_v = bc_insn_equals(bc_main, v, zero);
+        BCValue compare_v = bc_insn_eq(bc_main, v, zero);
         bc_insn_jump_if(bc_main, compare_v, label_p2);
 
         bc_insn_store(bc_main, t, u);
@@ -84,19 +85,25 @@ i32 main(i32 argc, cstring argv[]) {
 
         bc_function_set_block(bc_main, label_p2);
 
-        BCBlock label_p3 = bc_block_create(bc_main);
-        BCValue compare_v = bc_insn_greater_equals(bc_main, u, zero);
-        bc_insn_jump_if(bc_main, compare_v, label_p3);
+        BCBlock label_p3 = bc_block_make(bc_main);
+        BCValue compare_u = bc_insn_ge(bc_main, u, zero);
+        bc_insn_jump_if(bc_main, compare_u, label_p3);
 
-        BCValue minus_u = bc_insn_minus(bc_main, zero, u);
+        BCValue minus_u = bc_insn_sub(bc_main, zero, u);
         bc_insn_return(bc_main, minus_u);
 
         bc_function_set_block(bc_main, label_p3);
         bc_insn_return(bc_main, u);
 
-        // bc_function_dump(bc_main);
-        printf("%.*s", (i32) bc_main->name.length, bc_main->name.data);
+        bc_dump_function(bc_main, stdout);
+
+        FILE *file = fopen("generated.c", "wb");
+        if (!bc_generate_source(bc_context, file))
+            fprintf(stderr, "BC Emit failed.\n");
+        fclose(file);
+
     } while (0);
+#endif
 
     vector_foreach(string, filename, options.inputs) {
         Buffer buffer = read_file(*filename);
@@ -125,6 +132,17 @@ i32 main(i32 argc, cstring argv[]) {
 
     printf("Global scope has %d entries\n", sema_context->global->entries.length);
     write_program_dot(sema_context->programs[0], "hello.dot");
+
+    BuildContext *build_context = build_initialize(sema_context);
+    if (!build_bytecode(build_context)) {
+        fprintf(stderr, "Building bytecode failed.\n");
+        return 1;
+    }
+
+    FILE *file = fopen("generated.c", "wb");
+    if (!bc_generate_source(build_context->bc, file))
+        fprintf(stderr, "BC Emit failed.\n");
+    fclose(file);
 
     return 0;
 }

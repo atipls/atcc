@@ -21,3 +21,6 @@ cstring string_to_cstring(string s);
 
 bool string_match(string s1, string s2);
 bool string_match_cstring(string str, cstring cstr);
+
+bool string_to_f64(string s, f64 *value);
+bool string_to_u64(string s, u64 *value);

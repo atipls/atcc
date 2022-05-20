@@ -138,7 +138,7 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
             vector_push(context->errors, make_errorf(node, "type name '%.*s' is not defined", (i32) node->value.length, node->value.data));
             return null;
         }
-        default: unimplemented;
+        default: unimplemented; return null;
     }
 }
 
@@ -180,12 +180,11 @@ static bool sema_resolve_entry(SemanticContext *context, SemanticEntry *entry) {
                 entry->type = null;
                 unimplemented;
             }
+
+            break;
         }
         case SEMA_ENTRY_VARIABLE: {
-            if (!entry->node->variable_is_const || 1) {
-                entry->type = sema_analyze_initializer(context, entry->node->variable_type, entry->node->variable_initializer);
-            } else
-                unimplemented;
+            entry->type = sema_analyze_initializer(context, entry->node->variable_type, entry->node->variable_initializer);
             break;
         }
         case SEMA_ENTRY_FUNCTION: entry->type = sema_resolve_function_type(context, entry->node); break;
@@ -276,11 +275,24 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
             }
 
             unimplemented;
+            break;
         }
         case AST_EXPRESSION_LITERAL_NUMBER: {
-            expression->base_type = context->type_i32;
             // TODO: Properly handle floats, etc.
-            return context->type_i32;
+            // TODO: Check for overflow.
+
+            if (string_to_u64(expression->literal_value, &expression->literal_as_u64)) {
+                expression->base_type = context->type_i32;
+                if (expression->literal_as_u64 > 0x7FFFFFFF) expression->base_type = context->type_u32;
+                if (expression->literal_as_u64 > 0xFFFFFFFF) expression->base_type = context->type_i64;
+                if (expression->literal_as_u64 > 0x7FFFFFFFFFFFFFFF) expression->base_type = context->type_u64;
+            } else if (string_to_f64(expression->literal_value, &expression->literal_as_f64)) {
+                expression->base_type = context->type_f64;
+            } else {
+                unimplemented;
+            }
+
+            return expression->base_type;
         }
             // case AST_EXPRESSION_LITERAL_CHAR:
             // case AST_EXPRESSION_LITERAL_STRING:
@@ -300,6 +312,7 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
         case AST_EXPRESSION_CAST: {
             Type *target = sema_analyze_expression(context, expression->cast_target);
             Type *resolved = sema_resolve_type(context, expression->cast_type);
+            expression->cast_type->base_type = resolved;
 
             if (target != resolved) {
                 printf("TODO: Cast ");
@@ -316,7 +329,7 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
             // case AST_EXPRESSION_COMPOUND_FIELD:
             // case AST_EXPRESSION_COMPOUND_FIELD_NAME:
             // case AST_EXPRESSION_COMPOUND_FIELD_INDEX:
-        default: unimplemented;
+        default: unimplemented; return null;
     }
 }
 
@@ -372,9 +385,9 @@ static bool sema_analyze_statement_if(SemanticContext *context, ASTNode *stateme
         }
     }
 
-    bool returns = sema_analyze_statement_block(context, statement->if_true);
+    bool returns = sema_analyze_statement(context, statement->if_true);
     if (statement->if_false)
-        returns = sema_analyze_statement_block(context, statement->if_false) && returns;
+        returns = sema_analyze_statement(context, statement->if_false) && returns;
     else
         returns = false;
 
@@ -430,12 +443,16 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
             return false;
             // case AST_STATEMENT_EXPRESSION:
         case AST_STATEMENT_ASSIGN: sema_analyze_statement_assign(context, statement); return false;
-        default: unimplemented;
+        default: unimplemented; return false;
     }
 }
 
 static bool sema_analyze_variable(SemanticContext *context, ASTNode *variable) {
-    SemanticEntry *entry = sema_get(context->scope, variable->variable_name);
+    SemanticEntry *entry = sema_resolve_name(context, variable->variable_name);
+
+    // TODO: Stricter typechecks.
+    variable->base_type = entry->type;
+
     printf("analyzing variable %.*s\n", (i32) variable->variable_name.length, variable->variable_name.data);
     return true;
 }
@@ -498,5 +515,6 @@ bool sema_analyze(SemanticContext *context) {
     bool succeeded = true;
     vector_foreach_ptr(ASTNode, program, context->programs)
             succeeded &= sema_analyze_program(context, *program);
+    fflush(stdout);
     return succeeded;
 }

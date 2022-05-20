@@ -41,3 +41,8 @@ fun Test52(hello: i32): i32 {
 	hey = 10;
 	return hey;
 }
+fun Test53(hello: i32): i32 {
+	hey := hello;
+    aGlobal = cast(u64) hey;
+	return aGlobal;
+}

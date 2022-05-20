@@ -1,3 +1,7 @@
+alias bool = i32;
+
+const true  := cast(bool) 1;
+const false := cast(bool) 0;
 
 var aGlobal: u64;
 
@@ -57,7 +61,7 @@ fun Test6(hello: i32): i32 {
 	switch (hello) {
 		case 1: test2 = 22;
 		case 2: test2 = 77;
-		case 3 ... 10: test2 = 90;
+		case 3 .. 10: test2 = 90;
 		default: test2 = 58;
 	}
 	return test2 * 1;
@@ -80,7 +84,7 @@ fun Test81(): i8 {
 	return 8 / 2 * (2 + 2);
 }
 
-fun Print(fmt: i8*, ...): i32;
+fun Print(fmt: i8*, ..): i32;
 
 struct TestStruct {
 	first: i32;
@@ -175,7 +179,7 @@ fun MuClampReal(x: f64, a: f64, b: f64): f64 {
     return a;
 }
 
-const MU_HASH_INITIAL = 2166136261;
+const MU_HASH_INITIAL := 2166136261;
 
 alias MuId = u32;
 
@@ -239,7 +243,7 @@ fun main(argc: i32, argv: i8**): i32 {
     offset := &(cast(TestStruct *)0).third;
 	Print("Offset is %d\n", offset);
 
-	troll: u8 = 0xAA;
+	troll: u8 = 170;
 	trol2 := Crash(&troll);
 
 	string := "Testing";

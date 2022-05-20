@@ -27,6 +27,8 @@ typedef i32 bool;
 #define make(T) ((T *) calloc(sizeof(T), 1))
 #define make_n(T, n) ((T *) calloc(sizeof(T), (n)))
 
+#define bitcast(from, to, val) (union { from f1; to f2; }) { val } .f2
+
 typedef struct Buffer {
     i8 *data;
     u64 length;

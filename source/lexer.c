@@ -154,7 +154,13 @@ Token *lexer_tokenize(string filename, Buffer data) {
             case '=': lexer_build_equal(&lexer, current, TOKEN_EQUAL, TOKEN_EQUAL_EQUAL); break;
             case '!': lexer_build_equal(&lexer, current, TOKEN_EXCLAMATION, TOKEN_EXCLAMATION_EQUAL); break;
             case ':': lexer_build_equal(&lexer, current, TOKEN_COLON, TOKEN_COLON_EQUAL); break;
-            case '.': current->kind = TOKEN_DOT; break;
+            case '.':
+                current->kind = TOKEN_DOT;
+                if (lexer_peek(&lexer) == '.') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_DOT_DOT;
+                }
+                break;
             case ',': current->kind = TOKEN_COMMA; break;
             case '?': current->kind = TOKEN_QUESTION; break;
             case ';': current->kind = TOKEN_SEMICOLON; break;

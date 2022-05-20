@@ -79,7 +79,9 @@ static bool parser_is_cmp(Parser *parser) {
            parser->current->kind == TOKEN_GREATER ||
            parser->current->kind == TOKEN_GREATER_EQUAL ||
            parser->current->kind == TOKEN_LESS ||
-           parser->current->kind == TOKEN_LESS_EQUAL;
+           parser->current->kind == TOKEN_LESS_EQUAL ||
+           parser->current->kind == TOKEN_AMPERSAND_AMPERSAND ||
+           parser->current->kind == TOKEN_PIPE_PIPE;
 }
 
 static bool parser_is_assign(Parser *parser) {
@@ -132,7 +134,7 @@ static ASTNode *parse_expression_compound(Parser *parser, ASTNode *type) {
         return make_error(parser, str("Expected '{' in compound expression"));
     ASTNode **fields = null;
     while (!parser_check(parser, TOKEN_CLOSE_BRACE)) {
-        vector_push(fields, parse_expression(parser));
+        vector_push(fields, parse_expression_compound_field(parser));
         if (!parser_consume(parser, TOKEN_COMMA))
             break;
     }
@@ -356,7 +358,7 @@ static ASTNode *parse_statement_init(Parser *parser, ASTNode *expression) {
         node->init_name = expression->value;
         node->init_type = parse_typedecl(parser);
         if (parser_consume(parser, TOKEN_EQUAL)) {
-            node->init_is_nothing = parser_consume(parser, TOKEN_DOT_DOT_DOT) != null;
+            node->init_is_nothing = parser_consume(parser, TOKEN_DOT_DOT) != null;
             if (!node->init_is_nothing)
                 node->init_value = parse_expression(parser);
         }
@@ -440,12 +442,54 @@ static ASTNode *parse_statement_for(Parser *parser) {
     return node;
 }
 
+static ASTNode *parse_statement_switch_case(Parser *parser) {
+    ASTNode **switch_patterns = null;
+    bool is_default = false;
+    while (parser_check(parser, TOKEN_KW_CASE) || parser_check(parser, TOKEN_KW_DEFAULT)) {
+        if (parser_consume(parser, TOKEN_KW_CASE)) {
+            do {
+                ASTNode *pattern = make_ast(AST_STATEMENT_SWITCH_PATTERN);
+                pattern->switch_pattern_start = parse_expression(parser);
+                if (parser_consume(parser, TOKEN_DOT_DOT))
+                    pattern->switch_pattern_end = parse_expression(parser);
+                vector_push(switch_patterns, pattern);
+            } while (parser_consume(parser, TOKEN_COMMA));
+        } else {
+            parser_consume(parser, TOKEN_KW_DEFAULT);
+            if (is_default) return make_error(parser, str("Multiple default clauses."));
+            is_default = true;
+        }
+
+        if (!parser_consume(parser, TOKEN_COLON))
+            return make_error(parser, str("Expected ':' after switch value(s)."));
+    }
+
+    ASTNode *node = make_ast(AST_STATEMENT_SWITCH_CASE);
+    node->switch_case_patterns = switch_patterns;
+    node->switch_case_body = make_ast(AST_STATEMENT_BLOCK);
+    node->switch_case_is_default = is_default;
+    while (!parser_check(parser, TOKEN_EOF) && !parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_KW_CASE) && !parser_check(parser, TOKEN_KW_DEFAULT))
+        vector_push(node->switch_case_body->statements, parse_statement(parser));
+    return node;
+}
+
 static ASTNode *parse_statement_switch(Parser *parser) {
     ASTNode *expression = parse_expression_paren(parser);
     if (!parser_consume(parser, TOKEN_OPEN_BRACE))
         return make_error(parser, str("Expected '{' after 'switch'"));
 
-    return make_error(parser, str("Not implemented"));
+    ASTNode **switch_cases = null;
+    while (!parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_EOF))
+        vector_push(switch_cases, parse_statement_switch_case(parser));
+
+    if (!parser_consume(parser, TOKEN_CLOSE_BRACE))
+        return make_error(parser, str("Expected '}' after block"));
+
+    ASTNode *node = make_ast(AST_STATEMENT_SWITCH);
+    node->switch_expression = expression;
+    node->switch_cases = switch_cases;
+
+    return node;
 }
 
 static ASTNode *parse_statement_break_continue(Parser *parser, TokenKind kind) {
@@ -588,11 +632,14 @@ static ASTNode *parse_typedecl_base(Parser *parser) {
 static ASTNode *parse_typedecl(Parser *parser) {
     ASTNode *typedecl = parse_typedecl_base(parser);
 
-    if (parser_check(parser, TOKEN_OPEN_BRACKET) || parser_check(parser, TOKEN_STAR)) {
+    while (parser_check(parser, TOKEN_OPEN_BRACKET) || parser_check(parser, TOKEN_STAR)) {
         if (parser_consume(parser, TOKEN_OPEN_BRACKET)) {
             ASTNode *array_size = null;
             if (!parser_check(parser, TOKEN_CLOSE_BRACKET))
                 array_size = parse_expression(parser);
+            if (!parser_consume(parser, TOKEN_CLOSE_BRACKET))
+                return make_error(parser, str("Expected ']' after array size in a type."));
+
             ASTNode *base_type = typedecl;
             typedecl = make_ast(AST_DECLARATION_TYPE_ARRAY);
             typedecl->array_base = base_type;
@@ -623,10 +670,58 @@ static ASTNode *parse_declaration_alias(Parser *parser) {
     return node;
 }
 
+static ASTNode *parse_aggregate(Parser *parser, TokenKind kind);
+static ASTNode *parse_aggregate_item(Parser *parser) {
+    if (parser_consume(parser, TOKEN_KW_STRUCT) || parser_consume(parser, TOKEN_KW_UNION)) {
+        ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE_CHILD);
+        node->aggregate_kind = parser->previous->kind;
+        vector_push(node->aggregate_items, parse_aggregate(parser, node->aggregate_kind));
+        return node;
+    }
+
+    ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE_FIELD);
+    do {
+        if (!parser_consume(parser, TOKEN_IDENTIFIER))
+            return make_error(parser, str("Expected an identifier as a field name."));
+        vector_push(node->aggregate_names, parser->previous->value);
+    } while (parser_consume(parser, TOKEN_COMMA));
+
+    if (!parser_consume(parser, TOKEN_COLON))
+        return make_error(parser, str("Expected ':' after field names."));
+
+    node->aggregate_type = parse_typedecl(parser);
+
+    if (!parser_consume(parser, TOKEN_SEMICOLON))
+        return make_error(parser, str("Expected ';' after field type."));
+
+    return node;
+}
+
+static ASTNode *parse_aggregate(Parser *parser, TokenKind kind) {
+    if (!parser_consume(parser, TOKEN_OPEN_BRACE))
+        return make_error(parser, str("Expected '{' after aggregate."));
+
+    ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE_CHILD);
+    node->aggregate_kind = kind;
+    while (!parser_check(parser, TOKEN_EOF) && !parser_check(parser, TOKEN_CLOSE_BRACE))
+        vector_push(node->aggregate_items, parse_aggregate_item(parser));
+
+    if (!parser_consume(parser, TOKEN_CLOSE_BRACE))
+        return make_error(parser, str("Expected '}' after aggregate."));
+
+    return node;
+}
+
 static ASTNode *parse_declaration_aggregate(Parser *parser) {
-    TokenKind aggregate = parser->previous->kind;
-    
-    return make_error(parser, str("Not implemented (aggregate)."));
+    TokenKind kind = parser->previous->kind;
+    if (!parser_consume(parser, TOKEN_IDENTIFIER))
+        return make_error(parser, str("Expected identifier after 'struct' or 'union'."));
+
+    ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE);
+    node->aggregate_name = parser->previous->value;
+    node->aggregate = parse_aggregate(parser, kind);
+
+    return node;
 }
 
 static ASTNode *parse_declaration_variable(Parser *parser) {
@@ -675,7 +770,7 @@ static ASTNode *parse_declaration_function(Parser *parser) {
     if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
         vector_push(parameters, parse_declaration_function_parameter(parser));
         while (parser_consume(parser, TOKEN_COMMA)) {
-            if (parser_consume(parser, TOKEN_DOT_DOT_DOT)) {
+            if (parser_consume(parser, TOKEN_DOT_DOT)) {
                 if (is_variadic)
                     return make_error(parser, str("Variadic parameter can only be declared once."));
                 is_variadic = true;

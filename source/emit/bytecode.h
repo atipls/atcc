@@ -3,25 +3,28 @@
 #include <ati/basic.h>
 #include <ati/string.h>
 
-typedef struct BCValue *BCValue;
-typedef struct BCType *BCType;
-typedef struct BCCode *BCCode;
-typedef struct BCBlock *BCBlock;
-typedef struct BCFunction *BCFunction;
-typedef struct BCContext *BCContext;
+typedef struct SBCValue *BCValue;
+typedef struct SBCType *BCType;
+typedef struct SBCCode *BCCode;
+typedef struct SBCBlock *BCBlock;
+typedef struct SBCFunction *BCFunction;
+typedef struct SBCContext *BCContext;
 
 typedef enum {
     BC_VALUE_IS_CONSTANT = (1 << 1),
-    BC_VALUE_IS_VOLATILE = (1 << 2),
-    BC_VALUE_IS_REGISTER = (1 << 3),
-    BC_VALUE_IS_ADDRESSED = (1 << 4),
-    BC_VALUE_IS_PARAMETER = (1 << 5),
+    BC_VALUE_IS_PARAMETER = (1 << 2),
+    BC_VALUE_IS_TEMPORARY = (1 << 3),
+    BC_VALUE_IS_ON_STACK = (1 << 4),
+    BC_VALUE_IS_GLOBAL = (1 << 5),
 } BCValueFlags;
 
-struct BCValue {
+struct SBCValue {
     BCValueFlags flags;
-    BCType *type;
-    u64 storage;
+    BCType type;
+    union {
+        u64 storage;
+        f64 floating;
+    };
 };
 
 BCValue bc_value_make(BCFunction function, BCType type);
@@ -45,7 +48,7 @@ typedef struct {
     u32 offset;
 } BCAggregate;
 
-struct BCType {
+struct SBCType {
     BCTypeKind kind;
     u32 size;
     u32 alignment;
@@ -69,6 +72,7 @@ BCType bc_type_pointer(BCType type);
 BCType bc_type_array(BCType type, BCValue size);
 BCType bc_type_function(BCType result, BCType *params, u32 num_params);
 BCType bc_type_aggregate(BCType type, string name, u32 offset);
+bool bc_type_is_integer(BCType type);
 
 typedef enum {
     BC_OP_NOP,
@@ -101,35 +105,66 @@ typedef enum {
 
     BC_OP_CALL,
     BC_OP_RETURN,
+
+    BC_OP_CAST_BITWISE,
+    BC_OP_CAST_INT_TO_PTR,
+    BC_OP_CAST_PTR_TO_INT,
+    BC_OP_CAST_INT_TRUNC,
+    BC_OP_CAST_INT_ZEXT,
+    BC_OP_CAST_INT_SEXT,
+    BC_OP_CAST_FP_EXTEND,
+    BC_OP_CAST_FP_TRUNC,
+    BC_OP_CAST_FP_TO_SINT,
+    BC_OP_CAST_FP_TO_UINT,
+    BC_OP_CAST_SINT_TO_FP,
+    BC_OP_CAST_UINT_TO_FP,
 } BCOpcode;
 
-struct BCCode {
+struct SBCCode {
     BCBlock block;
     BCOpcode opcode;
     u32 flags;
 
-    BCValue dest;
-    BCValue regA;
-    BCValue regB;
+    union {
+        struct {
+            BCValue regA;
+            BCValue regB;
+            BCValue regD;
+        };
+        struct {
+            BCValue regC;
+            BCBlock bbT;
+            BCBlock bbF;
+        };
+    };
 };
 
-struct BCBlock {
+struct SBCBlock {
+    u64 serial;
     BCBlock prev, next;
 
     BCCode *code;
-    BCValue result;
+    BCValue input;
 };
 
-struct BCFunction {
+struct SBCFunction {
     BCType signature;
     string name;
 
     BCBlock first_block;
+    BCBlock last_block;
+
     BCBlock current_block;
+
+    BCValue params;
+    u32 last_temporary;
+    u32 last_block_serial;
+    u32 stack_size;
 };
 
-struct BCContext {
+struct SBCContext {
     BCFunction *functions;
+    u32 global_size;
 };
 
 BCContext bc_context_initialize();
@@ -137,19 +172,48 @@ BCContext bc_context_initialize();
 BCFunction bc_function_create(BCContext context, BCType signature, string name);
 BCBlock bc_function_set_block(BCFunction function, BCBlock block);
 BCBlock bc_function_get_block(BCFunction function);
-BCBlock bc_function_get_initializer(BCFunction function);
+BCValue bc_function_define(BCFunction function, BCType type);
 
-BCBlock bc_block_create(BCFunction function);
+BCBlock bc_block_make(BCFunction function);
+bool bc_block_is_terminated(BCBlock block);
 
 BCCode bc_insn_make(BCBlock block);
 
 BCValue bc_insn_nop(BCFunction function);
 
-BCValue bc_insn_load(BCFunction function, BCValue dest, BCValue src);
-BCValue bc_insn_load_address(BCFunction function, BCValue dest, BCValue src);
-BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue src);
+BCValue bc_insn_load(BCFunction function, BCValue source);
+BCValue bc_insn_load_address(BCFunction function, BCValue source);
+BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue source);
 
-BCValue bc_insn_jump(BCFunction function, BCBlock block);
-BCValue bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block);
+
+BCValue bc_insn_add(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_sub(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_mul(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_div(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_mod(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_neg(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_not(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_and(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_or(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_xor(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_shl(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_shr(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_eq(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_ne(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_lt(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_gt(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_le(BCFunction function, BCValue arg1, BCValue arg2);
+BCValue bc_insn_ge(BCFunction function, BCValue arg1, BCValue arg2);
+
+BCCode bc_insn_jump(BCFunction function, BCBlock block);
+BCCode bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block_true, BCBlock block_false);
 
 BCValue bc_insn_return(BCFunction function, BCValue value);
+
+BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCType target);
+
+void bc_dump_function(BCFunction function, FILE *f);
+
+bool bc_generate_amd64(BCContext context, FILE *f);
+bool bc_generate_arm64(BCContext context, FILE *f);
+bool bc_generate_source(BCContext context, FILE *f);
