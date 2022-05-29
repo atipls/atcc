@@ -115,8 +115,9 @@ BCFunction bc_function_create(BCContext context, BCType signature, string name) 
 }
 
 BCBlock bc_function_set_block(BCFunction function, BCBlock block) {
+    BCBlock last_block = function->current_block;
     function->current_block = block;
-    return function->current_block;
+    return last_block;
 }
 
 BCBlock bc_function_get_block(BCFunction function) {

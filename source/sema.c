@@ -203,6 +203,20 @@ static SemanticEntry *sema_resolve_name(SemanticContext *context, string name) {
 
 static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression);
 
+static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
+    if (node_type(node) == target)
+        return true;
+
+    return false;
+}
+
+static bool sema_node_convert_explicit(ASTNode *node, Type *target) {
+    if (sema_node_convert_implicit(node, target))
+        return true;
+
+    return false;
+}
+
 static void sema_unify_binary_operands(SemanticContext *context, ASTNode *left, ASTNode *right) {
     if (node_type(left) == node_type(right)) return;
     if (node_type(left) == context->type_f64)
@@ -395,10 +409,78 @@ static bool sema_analyze_statement_if(SemanticContext *context, ASTNode *stateme
     return returns;
 }
 
+static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode *statement) {
+    bool has_default = false;
+    bool every_case_returns = true;
+
+    vector_foreach_ptr(ASTNode, switch_pattern_ptr, statement->switch_case_patterns) {
+        ASTNode *switch_pattern = *switch_pattern_ptr;
+
+        Type *pattern_start = sema_analyze_expression(context, switch_pattern->switch_pattern_start);
+        Type *pattern_end = switch_pattern->switch_pattern_end
+                                    ? sema_analyze_expression(context, switch_pattern->switch_pattern_end) : null;
+
+    }
+#if 0
+for (SwitchCasePattern &pattern : switchCase.patterns) {
+    Expression *startExpression = pattern.start;
+    Expression *endExpression = pattern.end;
+    Operand startOperand = ResolveConstExpression(startExpression);
+    if (!ConvertOperand(&startOperand, operand.type))
+        Error(startExpression->location, "Invalid type in switch case expression. Expected %s, got %s", GetTypeName(operand.type), GetTypeName(startOperand.type));
+    if (endExpression) {
+        Operand endOperand = ResolveConstExpression(endExpression);
+        if (!ConvertOperand(&endOperand, operand.type))
+            Error(endExpression->location, "Invalid type in switch case expression. Expected %s, got %s", GetTypeName(operand.type), GetTypeName(endOperand.type));
+        ConvertOperand(&startOperand, Bi64);
+        SetResolvedValue(startExpression, startOperand.value);
+        ConvertOperand(&endOperand, Bi64);
+        SetResolvedValue(endExpression, endOperand.value);
+        if (endOperand.value.i64 < startOperand.value.i64)
+            Error(startExpression->location, "Case range end value cannot be less than start value");
+        if (endOperand.value.i64 - startOperand.value.i64 >= 256)
+            Error(startExpression->location, "Case range cannot span more than 256 values");
+    }
+}
+if (switchCase.isDefault) {
+    if (hasDefault) Error(statement->location, "Switch statement has multiple default clauses");
+    hasDefault = true;
+}
+if (switchCase.block.statements.length > 1) {
+    Statement *lastStatement = *switchCase.block.statements.Last();
+    if (lastStatement->kind == STMT_BREAK)
+        Warn(lastStatement->location, "Case blocks already end with an implicit break");
+}
+#endif
+
+    return has_default && every_case_returns;
+}
+
+static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *statement) {
+    SemanticScope *old_scope = context->scope;
+    context->scope = make_scope(old_scope);
+
+    Type *expression_type = sema_analyze_expression(context, statement->switch_expression);
+    if (!type_is_integer(expression_type) && expression_type != context->type_string) {
+        vector_push(context->errors, make_errorf(statement->switch_expression, "switch expression must be integer or string"));
+        return false;
+    }
+
+    context->is_break_legal = true;
+
+    bool returns = true;
+    vector_foreach_ptr(ASTNode, switch_case, statement->switch_case_body->statements)
+            returns = sema_analyze_statement_switch_case(context, *switch_case) || returns;
+
+
+    context->scope = old_scope;
+    return returns;
+}
+
 static bool sema_analyze_statement_init(SemanticContext *context, ASTNode *statement) {
     Type *resolved = sema_analyze_initializer(context, statement->init_type, statement->init_value);
     if (sema_get(context->scope, statement->init_name)) {
-        vector_push(context->errors, make_errorf(statement, "redefinition of %.*s", (i32) statement->init_name.length, statement->init_name.data));
+        vector_push(context->errors, make_errorf(statement, "redefinition of %.*s", strp(statement->init_name)));
         return false;
     }
 
@@ -409,7 +491,6 @@ static bool sema_analyze_statement_init(SemanticContext *context, ASTNode *state
     entry->type = resolved;
     sema_put(context->scope, statement->init_name, entry);
     statement->base_type = resolved;
-
     return true;
 }
 
@@ -430,7 +511,7 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
         // case AST_STATEMENT_WHILE:
         // case AST_STATEMENT_DO_WHILE:
         // case AST_STATEMENT_FOR:
-        // case AST_STATEMENT_SWITCH:
+        case AST_STATEMENT_SWITCH: return sema_analyze_statement_switch(context, statement);
         // case AST_STATEMENT_BREAK:
         // case AST_STATEMENT_CONTINUE:
         case AST_STATEMENT_RETURN: {

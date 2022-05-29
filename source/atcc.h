@@ -428,6 +428,9 @@ typedef struct {
     Type *type_f32;
     Type *type_f64;
     Type *type_string;
+
+    bool is_break_legal;
+    bool is_continue_legal;
 } SemanticContext;
 
 SemanticContext *sema_initialize();

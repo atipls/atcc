@@ -48,7 +48,7 @@ i32 main(i32 argc, cstring argv[]) {
 #else
     (void) argc;
     (void) argv;
-    vector_push(options.inputs, str("sample/hello.aa"));
+    vector_push(options.inputs, str("sample/simple.aa"));
 #endif
 
     SemanticContext *sema_context = sema_initialize();

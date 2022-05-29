@@ -425,7 +425,7 @@ bool build_bytecode(BuildContext *context) {
         vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
                 build_preload_declaration(context, *declaration);
     }
-
+    
     vector_foreach_ptr(ASTNode, program, context->sema->programs) {
         vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
                 build_declaration(context, *declaration);
