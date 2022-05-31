@@ -138,6 +138,13 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
             vector_push(context->errors, make_errorf(node, "type name '%.*s' is not defined", (i32) node->value.length, node->value.data));
             return null;
         }
+        case AST_DECLARATION_TYPE_POINTER: {
+            Type *base_type = sema_resolve_type(context, node->parent);
+            Type *pointer = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
+            pointer->base_type = base_type;
+
+            return pointer;
+        }
         default: unimplemented; return null;
     }
 }
@@ -204,14 +211,28 @@ static SemanticEntry *sema_resolve_name(SemanticContext *context, string name) {
 static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression);
 
 static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
-    if (node_type(node) == target)
+    Type *source = node_type(node);
+    if (source == target)
         return true;
+
+    // Cannot downcast implicitly
+    if (type_is_scalar(source) && type_is_scalar(target)) {
+        if (source->size >= target->size)
+            return true;
+    }
 
     return false;
 }
 
 static bool sema_node_convert_explicit(ASTNode *node, Type *target) {
     if (sema_node_convert_implicit(node, target))
+        return true;
+
+    Type *source = node_type(node);
+    if (type_is_scalar(source) && type_is_scalar(target))
+        return true;
+
+    if (source->size == target->size)
         return true;
 
     return false;
@@ -328,12 +349,16 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
             Type *resolved = sema_resolve_type(context, expression->cast_type);
             expression->cast_type->base_type = resolved;
 
-            if (target != resolved) {
-                printf("TODO: Cast ");
+            if (!sema_node_convert_explicit(expression->cast_target, resolved)) {
+                printf("Cannot convert type ");
                 print_type(target);
                 printf(" to ");
                 print_type(resolved);
                 printf("\n");
+            }
+
+            if (target != resolved) {
+                printf("TODO: Cast\n");
             }
 
             expression->base_type = resolved;
@@ -418,8 +443,8 @@ static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode
 
         Type *pattern_start = sema_analyze_expression(context, switch_pattern->switch_pattern_start);
         Type *pattern_end = switch_pattern->switch_pattern_end
-                                    ? sema_analyze_expression(context, switch_pattern->switch_pattern_end) : null;
-
+                                    ? sema_analyze_expression(context, switch_pattern->switch_pattern_end)
+                                    : null;
     }
 #if 0
 for (SwitchCasePattern &pattern : switchCase.patterns) {
@@ -567,7 +592,7 @@ static bool sema_analyze_function(SemanticContext *context, ASTNode *function) {
         printf("\n");
     }
 
-    bool returns = sema_analyze_statement(context, function->function_body);
+    bool returns = function->function_body ? sema_analyze_statement(context, function->function_body) : true;
     bool conforms = returns || type->function_return_type == context->type_void;
     printf("   returns: %s\n", conforms ? "true" : "false");
 

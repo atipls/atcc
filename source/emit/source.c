@@ -265,6 +265,7 @@ static void bc_generate_function(BCFunction function, FILE *f) {
 
 bool bc_generate_source(BCContext context, FILE *f) {
     bc_generate_prelude(f);
+    fprintf(f, "static char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
 
     // TODO: Generate forward decls.
     vector_foreach(BCFunction, function_ptr, context->functions)

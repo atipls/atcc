@@ -46,3 +46,24 @@ fun Test53(hello: i32): i32 {
     aGlobal = cast(u64) hey;
 	return aGlobal;
 }
+
+fun Print(fmt: i8*, ..): i32;
+
+fun Test15(): i32 {
+	hello := 333;
+
+	if (false || hello > 0) {
+		hello = 12;
+		aGlobal = 553;
+		h2 := cast(u32) aGlobal;
+		if (false) {
+			return 92;
+		}
+	} else if (1 || 2) {
+		hello = 34;
+	}
+
+	hello = 33;
+	return hello;
+
+}

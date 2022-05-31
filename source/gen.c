@@ -22,6 +22,11 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         return bc_type_string;
     }
 
+    if (type->kind == TYPE_POINTER) {
+        BCType base_type = build_convert_type(context, type->base_type);
+        return bc_type_pointer(base_type);
+    }
+
     assert(!"unimplemented");
     return null;
 }
@@ -333,7 +338,8 @@ static void build_function(BuildContext *context, ASTNode *function) {
         string_table_set(&context->locals, parameter->function_parameter_name, value);
     }
 
-    build_statement(context, function->function_body);
+    if (function->function_body)
+        build_statement(context, function->function_body);
     // TODO: For void return types, we should build the instruction on unterminated blocks.
 
     bc_dump_function(context->function, stderr);
@@ -425,7 +431,7 @@ bool build_bytecode(BuildContext *context) {
         vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
                 build_preload_declaration(context, *declaration);
     }
-    
+
     vector_foreach_ptr(ASTNode, program, context->sema->programs) {
         vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
                 build_declaration(context, *declaration);
