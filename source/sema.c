@@ -523,9 +523,13 @@ static bool sema_analyze_statement_assign(SemanticContext *context, ASTNode *sta
     Type *left = sema_analyze_expression(context, statement->assign_target);
     Type *right = sema_analyze_expression(context, statement->assign_value);
 
-    printf("TODO: check assignment\n");
+    if (left != right)
+        printf("TODO: Typecheck assign\n");
 
-    statement->base_type = left;
+    if (statement->assign_operator == TOKEN_EQUAL)
+        statement->base_type = right;
+
+    printf("TODO: check assignment\n");
     return true;
 }
 

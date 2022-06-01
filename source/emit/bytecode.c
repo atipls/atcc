@@ -73,7 +73,7 @@ BCType bc_type_pointer(BCType type) {
 BCType bc_type_array(BCType type, BCValue size) {
     BCType array = make(struct SBCType);
     array->kind = BC_TYPE_ARRAY;
-    array->size = array->alignment = POINTER_SIZE;// TODO: This should be a fat pointer, ptr+size
+    array->size = array->alignment = POINTER_SIZE; // TODO: This should be a fat pointer, ptr+size
     array->subtype = type;
     array->count = size;
     return array;
