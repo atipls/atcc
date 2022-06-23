@@ -27,6 +27,17 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         return bc_type_pointer(base_type);
     }
 
+    if (type->kind == TYPE_FUNCTION) {
+        BCType result = build_convert_type(context, type->function_return_type);
+        BCType *parameters = null;
+        vector_foreach_ptr(Type, parameter_ptr, type->function_parameters) {
+            BCType parameter = build_convert_type(context, *parameter_ptr);
+            vector_push(parameters, parameter);
+        }
+
+        return bc_type_function(result, parameters, vector_len(parameters));
+    }
+
     assert(!"unimplemented");
     return null;
 }
@@ -127,7 +138,6 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
     BCValue binary_r = build_expression(context, expression->binary_right);
 
     switch (expression->binary_operator) {
-        // case TOKEN_STAR: return null;
         // case TOKEN_SLASH: return null;
         // case TOKEN_PERCENT: return null;
         // case TOKEN_AMPERSAND: return null;
@@ -141,6 +151,7 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
             // TODO: Pointer arithmetic
             return bc_insn_sub(context->function, binary_l, binary_r);
         }
+        case TOKEN_STAR: return bc_insn_mul(context->function, binary_l, binary_r);
         case TOKEN_CARET: return bc_insn_xor(context->function, binary_l, binary_r);
         case TOKEN_PIPE: return bc_insn_or(context->function, binary_l, binary_r);
         case TOKEN_EQUAL_EQUAL: return bc_insn_eq(context->function, binary_l, binary_r);
@@ -149,6 +160,7 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
         case TOKEN_GREATER_EQUAL: return bc_insn_ge(context->function, binary_l, binary_r);
         case TOKEN_LESS: return bc_insn_lt(context->function, binary_l, binary_r);
         case TOKEN_LESS_EQUAL: return bc_insn_le(context->function, binary_l, binary_r);
+
         default: assert(!"unreachable"); return null;
     }
 }
@@ -225,7 +237,18 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
                 resolved = bc_insn_load(context->function, resolved);
             return resolved;
         }
-        // case AST_EXPRESSION_CALL: return null;
+        case AST_EXPRESSION_CALL: {
+            // TODO: Check if it's a function pointer.
+            BCValue target = build_expression(context, expression->call_target);
+            BCValue *args = null;
+
+            vector_foreach_ptr(ASTNode, argument_ptr, expression->call_arguments) {
+                BCValue argument = build_expression(context, *argument_ptr);
+                vector_push(args, argument);
+            }
+
+            return bc_insn_call(context->function, target, args, vector_len(args));
+        }
         // case AST_EXPRESSION_FIELD: return null;
         // case AST_EXPRESSION_INDEX: return null;
         case AST_EXPRESSION_CAST: return build_expression_cast(context, expression);
@@ -296,7 +319,7 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
         // case AST_STATEMENT_WHILE: break;
         // case AST_STATEMENT_DO_WHILE: break;
         // case AST_STATEMENT_FOR: break;
-        // case AST_STATEMENT_SWITCH: break;
+        case AST_STATEMENT_SWITCH: printf("TODO: Switch\n"); bc_insn_nop(context->function); break;
         // case AST_STATEMENT_BREAK: break;
         // case AST_STATEMENT_CONTINUE: break;
         case AST_STATEMENT_RETURN: bc_insn_return(context->function, build_expression(context, statement->parent)); break;
@@ -329,7 +352,9 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
 static void build_function(BuildContext *context, ASTNode *function) {
     string_table_destroy(&context->locals);
 
-    context->function = string_table_get(&context->functions, function->function_name);
+    BCValue function_value = string_table_get(&context->functions, function->function_name);
+    context->function = (BCFunction) function_value->storage;
+
     for (u32 i = 0; i < context->function->signature->num_params; i++) {
         // TODO: Should function parameters be lvalues?
 
@@ -368,8 +393,13 @@ static void build_preload_function(BuildContext *context, ASTNode *function) {
 
     BCType function_type = bc_type_function(build_convert_type(context, type->function_return_type), params, num_params);
     BCFunction bc_function = bc_function_create(context->bc, function_type, function->function_name);
+    BCValue bc_function_value = null;
+    bc_function_value = make(struct SBCValue);
+    bc_function_value->flags = BC_VALUE_IS_FUNCTION;
+    bc_function_value->type = function_type;
+    bc_function_value->storage = (u64) bc_function;
 
-    string_table_set(&context->functions, function->function_name, bc_function);
+    string_table_set(&context->functions, function->function_name, bc_function_value);
 }
 
 static void build_preload_variable(BuildContext *context, ASTNode *variable) {

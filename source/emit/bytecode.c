@@ -261,6 +261,18 @@ BCValue bc_insn_gt(BCFunction function, BCValue arg1, BCValue arg2) { return bc_
 BCValue bc_insn_le(BCFunction function, BCValue arg1, BCValue arg2) { return bc_insn_arith(function, BC_OP_LE, arg1, arg2); }
 BCValue bc_insn_ge(BCFunction function, BCValue arg1, BCValue arg2) { return bc_insn_arith(function, BC_OP_GE, arg1, arg2); }
 
+BCValue bc_insn_call(BCFunction function, BCValue target, BCValue *args, u32 num_args) {
+    BCCode insn = bc_insn_of(function);
+    insn->opcode = BC_OP_CALL;
+
+    insn->target = target;
+    insn->result = bc_value_make(function, target->type->subtype);
+    insn->args = args;
+    insn->num_args = num_args;
+
+    return insn->result;
+}
+
 BCValue bc_insn_return(BCFunction function, BCValue value) {
     // TODO: Terminate the current block and start a new one.
     // TODO: Check if the return type is null, or if it's of a void type.

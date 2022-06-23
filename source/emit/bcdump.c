@@ -33,7 +33,7 @@ static void bc_dump_type(BCType type, FILE *f) {
             break;
         case BC_TYPE_ARRAY: break;
         case BC_TYPE_FUNCTION:
-            fprintf(f, "(");
+            fprintf(f, "fun(");
             for (size_t i = 0; i < type->num_params; i++) {
                 bc_dump_type(type->params[i], f);
                 if (i != type->num_params - 1) fprintf(f, ", ");
@@ -91,6 +91,12 @@ static void bc_dump_value(BCValue value, FILE *f) {
         fprintf(f, "(stack+%llu)[", value->storage);
         bc_dump_type(value->type, f);
         fprintf(f, "]");
+        return;
+    }
+
+    if (value->flags & BC_VALUE_IS_FUNCTION) {
+        BCFunction function = (BCFunction) value->storage;
+        fprintf(f, "%.*s", strp(function->name));
         return;
     }
 
@@ -155,7 +161,19 @@ static void bc_dump_code(BCCode code, FILE *f) {
             bc_dump_value(code->regA, f);
             fprintf(f, " to block%llu else block%llu", code->bbT->serial, code->bbF->serial);
             break;
-        case BC_OP_CALL: fprintf(f, "insn call"); break;
+        case BC_OP_CALL: {
+            bc_dump_value(code->result, f);
+            fprintf(f, " = ");
+            bc_dump_value(code->target, f);
+            fprintf(f, "(");
+            for (u32 i = 0; i < code->num_args; i++) {
+                bc_dump_value(code->args[i], f);
+                if (i < code->num_args - 1)
+                    fprintf(f, ", ");
+            }
+            fprintf(f, ")");
+            break;
+        }
         case BC_OP_RETURN:
             fprintf(f, "return ");
             bc_dump_value(code->regA, f);

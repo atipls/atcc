@@ -109,6 +109,12 @@ static void bc_generate_value(BCValue value, FILE *f) {
         fprintf(f, ")(&GLOBAL_VARIABLES[%llu]))", value->storage);
         return;
     }
+
+    if (value->flags & BC_VALUE_IS_FUNCTION) {
+        BCFunction function = (BCFunction) value->storage;
+        fprintf(f, "%.*s", strp(function->name));
+        return;
+    }
 }
 
 static void bc_generate_binary_arith(BCCode code, cstring fmt, FILE *f) {
@@ -187,7 +193,21 @@ static void bc_generate_code(BCCode code, FILE *f) {
             bc_generate_value(code->regC, f);
             fprintf(f, ") goto __block%llu; else goto __block%llu;", code->bbT->serial, code->bbF->serial);
             break;
-        case BC_OP_CALL: fprintf(f, "// call"); break;
+        case BC_OP_CALL: {
+            bc_generate_type(code->result->type, f);
+            fprintf(f, " ");
+            bc_generate_value(code->result, f);
+            fprintf(f, " = ");
+            bc_generate_value(code->target, f);
+            fprintf(f, "(");
+            for (u32 i = 0; i < code->num_args; i++) {
+                bc_generate_value(code->args[i], f);
+                if (i < code->num_args - 1)
+                    fprintf(f, ", ");
+            }
+            fprintf(f, ");");
+            break;
+        }
         case BC_OP_RETURN:
             fprintf(f, "return ");
             if (code->regA) bc_generate_value(code->regA, f);

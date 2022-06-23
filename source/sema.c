@@ -6,10 +6,7 @@
 #define unimplemented assert(!"unimplemented")
 
 
-static SemanticError make_errorf(ASTNode *node, const char *msg, ...) {
-    va_list args;
-    va_start(args, msg);
-
+static SemanticError make_errorv(ASTNode *node, cstring msg, va_list args) {
     string message = make_string(128);
     vsnprintf((char *) message.data, message.length, msg, args);
 
@@ -23,6 +20,15 @@ static SemanticError make_errorf(ASTNode *node, const char *msg, ...) {
     err.location = node->location;
     err.description = message;
     return err;
+}
+
+static void sema_errorf(SemanticContext *context, ASTNode *node, cstring msg, ...) {
+    va_list args;
+    va_start(args, msg);
+
+    vector_push(context->errors, make_errorv(node, msg, args));
+
+    va_end(args);
 }
 
 static SemanticScope *make_scope(SemanticScope *parent) {
@@ -101,7 +107,7 @@ static bool sema_register(SemanticContext *context, SemanticEntryKind kind, stri
     entry->state = SEMA_STATE_UNRESOLVED;
     entry->node = node;
     if (!string_table_set(&context->scope->entries, name, entry)) {
-        vector_push(context->errors, make_errorf(node, "redefinition of '%.*s'", (i32) name.length, name.data));
+        sema_errorf(context, node, "redefinition of '%.*s'", (i32) name.length, name.data);
         return false;
     }
     return true;
@@ -114,7 +120,17 @@ bool sema_register_program(SemanticContext *context, ASTNode *program) {
         ASTNode *node = *declaration;
         switch (node->kind) {
             case AST_DECLARATION_ALIAS: succeeded &= sema_register(context, SEMA_ENTRY_TYPE, node->alias_name, node); break;
-            case AST_DECLARATION_AGGREGATE: succeeded &= sema_register(context, SEMA_ENTRY_TYPE, node->alias_name, node); break;
+            case AST_DECLARATION_AGGREGATE: {
+                succeeded &= sema_register(context, SEMA_ENTRY_TYPE, node->aggregate_name, node);
+                if (!succeeded)
+                    break;
+
+                SemanticEntry *entry = sema_get(context->scope, node->aggregate_name);
+                entry->state = SEMA_STATE_RESOLVED;
+                entry->type = make_type(TYPE_AGGREGATE, 0, 0);
+
+                break;
+            }
             case AST_DECLARATION_VARIABLE: succeeded &= sema_register(context, SEMA_ENTRY_VARIABLE, node->variable_name, node); break;
             case AST_DECLARATION_FUNCTION: succeeded &= sema_register(context, SEMA_ENTRY_FUNCTION, node->function_name, node); break;
             default: break;
@@ -123,6 +139,11 @@ bool sema_register_program(SemanticContext *context, ASTNode *program) {
 
     return succeeded;
 }
+
+static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode *expression, Type *expected);
+static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression);
+static Type *sema_analyze_initializer(SemanticContext *context, ASTNode *typedecl, ASTNode *initializer);
+
 
 static Type *sema_resolve_type(SemanticContext *context, ASTNode *node);
 static bool sema_resolve_entry(SemanticContext *context, SemanticEntry *entry);
@@ -135,7 +156,8 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
             SemanticEntry *entry = sema_get(context->scope, node->value);
             if (entry && sema_resolve_entry(context, entry))
                 return entry->type;
-            vector_push(context->errors, make_errorf(node, "type name '%.*s' is not defined", (i32) node->value.length, node->value.data));
+
+            sema_errorf(context, node, "type name '%.*s' is not defined", (i32) node->value.length, node->value.data);
             return null;
         }
         case AST_DECLARATION_TYPE_POINTER: {
@@ -145,8 +167,64 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
 
             return pointer;
         }
+        case AST_DECLARATION_TYPE_ARRAY: {
+            Type *base_type = sema_resolve_type(context, node->array_base);
+
+            sema_analyze_expression(context, node->array_size);
+            assert(node->array_size->kind == AST_EXPRESSION_LITERAL_NUMBER);
+
+            u32 size = (u32) node->array_size->literal_as_u64 * base_type->size;
+
+            Type *array = make_type(TYPE_ARRAY, size, size);// TODO: Alignment.
+            array->array_base = base_type;
+            array->array_size = node->array_size->literal_as_u64;
+
+            return array;
+        }
         default: unimplemented; return null;
     }
+}
+
+static u32 sema_resolve_aggregate_item(SemanticContext *context, ASTNode *node, TypeField **fields, bool address_only) {
+    switch (node->kind) {
+        case AST_DECLARATION_AGGREGATE_FIELD: {
+            Type *type = sema_resolve_type(context, node->aggregate_type);
+            if (!type) return 0;
+
+            u32 total_size = 0;
+            vector_foreach(string, name, node->aggregate_names) {
+                TypeField *field = vector_add(*fields, 1);
+                field->name = *name;
+                field->type = type;
+                field->address_only = address_only;
+                total_size += type->size;
+            }
+
+            if (address_only)
+                return type->size;
+
+            return total_size;
+        }
+        case AST_DECLARATION_AGGREGATE_CHILD: {
+            u32 total_size = 0;
+            vector_foreach_ptr(ASTNode, child, node->aggregate_items)
+                    total_size += sema_resolve_aggregate_item(context, *child, fields, node->aggregate_kind == TOKEN_KW_UNION);
+            return total_size;
+        }
+        default: assert(!"unreachable"); return 0;
+    }
+}
+
+static Type *sema_resolve_aggregate_type(SemanticContext *context, ASTNode *node) {
+    TypeField *fields = null;
+    u32 total_size = 0;
+    vector_foreach_ptr(ASTNode, field, node->aggregate_items)
+            total_size += sema_resolve_aggregate_item(context, *field, &fields, node->aggregate_kind == TOKEN_KW_UNION);
+
+    Type *type = make_type(TYPE_AGGREGATE, total_size, total_size);// TODO: alignment
+    type->fields = fields;
+
+    return type;
 }
 
 static Type *sema_resolve_function_type(SemanticContext *context, ASTNode *node) {
@@ -165,14 +243,14 @@ static Type *sema_resolve_function_type(SemanticContext *context, ASTNode *node)
     node->base_type = make_type(TYPE_FUNCTION, POINTER_SIZE, POINTER_SIZE);
     node->base_type->function_parameters = parameters;
     node->base_type->function_return_type = return_type;
+    node->base_type->function_is_variadic = node->function_is_variadic;
     return node->base_type;
 }
 
-static Type *sema_analyze_initializer(SemanticContext *context, ASTNode *typedecl, ASTNode *initializer);
 static bool sema_resolve_entry(SemanticContext *context, SemanticEntry *entry) {
     if (entry->state == SEMA_STATE_RESOLVED) return true;
     if (entry->state == SEMA_STATE_RESOLVING) {
-        vector_push(context->errors, make_errorf(entry->node, "cyclic type definition"));
+        sema_errorf(context, entry->node, "cyclic type definition");
         return false;
     }
 
@@ -180,13 +258,19 @@ static bool sema_resolve_entry(SemanticContext *context, SemanticEntry *entry) {
     switch (entry->kind) {
         case SEMA_ENTRY_NONE: break;
         case SEMA_ENTRY_TYPE: {
-            if (entry->node->kind == AST_DECLARATION_ALIAS)
+            if (entry->node->kind == AST_DECLARATION_ALIAS) {
                 entry->type = sema_resolve_type(context, entry->node->alias_type);
-            else {
-                vector_push(context->errors, make_errorf(entry->node, "unimplemented type"));
-                entry->type = null;
-                unimplemented;
+                break;
             }
+
+            if (entry->node->kind == AST_DECLARATION_AGGREGATE) {
+                entry->type = sema_resolve_aggregate_type(context, entry->node->aggregate);
+                break;
+            }
+
+            sema_errorf(context, entry->node, "unimplemented type");
+            entry->type = null;
+            unimplemented;
 
             break;
         }
@@ -208,12 +292,14 @@ static SemanticEntry *sema_resolve_name(SemanticContext *context, string name) {
     return null;
 }
 
-static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression);
+static bool sema_analyze_aggregate() {
+
+}
 
 static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
     Type *source = node_type(node);
-    if (source == target)
-        return true;
+    if (!source || !target) return false;
+    if (source == target) return true;
 
     // Cannot downcast implicitly
     if (type_is_scalar(source) && type_is_scalar(target)) {
@@ -249,8 +335,9 @@ static void sema_unify_binary_operands(SemanticContext *context, ASTNode *left, 
     else if (node_type(right) == context->type_f32)
         left->conv_type = context->type_f32;
     else {
-        vector_push(context->errors, make_errorf(left, "incompatible types"));
-        unimplemented;
+        sema_errorf(context, left, "incompatible types (unimplemented)");
+        right->conv_type = node_type(left);
+        // unimplemented;
     }
 }
 
@@ -262,12 +349,12 @@ static Type *sema_analyze_expression_binary(SemanticContext *context, ASTNode *e
         case TOKEN_STAR:
         case TOKEN_SLASH: {
             if (!type_is_arithmetic(left)) {
-                vector_push(context->errors, make_errorf(expression->binary_left, "left operand must be arithmetic"));
+                sema_errorf(context, expression->binary_left, "left operand must be arithmetic");
                 return null;
             }
 
             if (!type_is_arithmetic(right)) {
-                vector_push(context->errors, make_errorf(expression->binary_right, "right operand must be arithmetic"));
+                sema_errorf(context, expression->binary_right, "right operand must be arithmetic");
                 return null;
             }
         }
@@ -279,7 +366,20 @@ static Type *sema_analyze_expression_binary(SemanticContext *context, ASTNode *e
     }
 }
 
-static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression) {
+static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode *expression, Type *expected) {
+    if (!expected && !expression->compound_type) {
+        sema_errorf(context, expression->compound_type, "implicit compound literals cannot be inferred");
+        return null;
+    }
+
+    Type *type = expression->compound_type ? sema_resolve_type(context, expression->compound_type) : expected;
+
+    // TODO: Check that all members are of the same type
+
+    return type;
+}
+
+static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode *expression, Type *expected) {
     switch (expression->kind) {
         case AST_EXPRESSION_PAREN: {
             Type *resolved = sema_analyze_expression(context, expression->parent);
@@ -297,7 +397,7 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
         case AST_EXPRESSION_TERNARY: {
             Type *condition = sema_analyze_expression(context, expression->ternary_condition);
             if (!type_is_scalar(condition)) {
-                vector_push(context->errors, make_errorf(expression->ternary_condition, "ternary condition must be scalar"));
+                sema_errorf(context, expression->ternary_condition, "ternary condition must be scalar");
                 return null;
             }
 
@@ -334,16 +434,79 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
         case AST_EXPRESSION_IDENTIFIER: {
             SemanticEntry *entry = sema_resolve_name(context, expression->value);
             if (!entry) {
-                vector_push(context->errors, make_errorf(expression, "undefined symbol '%s'", expression->value));
+                sema_errorf(context, expression, "undefined symbol '%s'", expression->value);
                 return null;
             }
 
             expression->base_type = entry->type;
             return entry->type;
         }
-        // case AST_EXPRESSION_CALL:
-        // case AST_EXPRESSION_FIELD:
-        // case AST_EXPRESSION_INDEX:
+        case AST_EXPRESSION_CALL: {
+            Type *target_function_type = sema_analyze_expression(context, expression->call_target);
+            bool target_is_function = target_function_type->kind == TYPE_FUNCTION ||
+                                      (target_function_type->kind == TYPE_POINTER && target_function_type->base_type->kind == TYPE_FUNCTION);
+            if (!target_is_function) {
+                sema_errorf(context, expression->call_target, "cannot call a non-function value");
+                return null;
+            }
+
+            u32 wanted_args = vector_len(target_function_type->function_parameters);
+            u32 given_args = vector_len(expression->call_arguments);
+
+            if (given_args < wanted_args) {
+                sema_errorf(context, expression->call_target, "function got too few arguments. wanted %u, given %u", wanted_args, given_args);
+                return null;
+            }
+
+            if (given_args > wanted_args && !target_function_type->function_is_variadic) {
+                sema_errorf(context, expression->call_target, "function got too many arguments. wanted %u, given %u", wanted_args, given_args);
+                return null;
+            }
+
+            for (u32 i = 0; i < given_args; i++) {
+                ASTNode *argument = expression->call_arguments[i];
+                sema_analyze_expression(context, argument);
+                if (i >= wanted_args) break;// Don't typecheck variadic arguments.
+
+                if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
+                    // TODO: Better error message?
+                    sema_errorf(context, expression->call_target, "function argument %d has the wrong type", i + 1);
+                    return null;
+                }
+            }
+
+            expression->base_type = target_function_type->function_return_type;
+            return target_function_type->function_return_type;
+        }
+        case AST_EXPRESSION_FIELD: {
+            Type *field_type = sema_analyze_expression(context, expression->field_target);
+
+            vector_foreach(TypeField, field, field_type->fields) {
+                if (string_match(field->name, expression->field_name)) {
+                    expression->base_type = field->type;
+                    return field->type;
+                }
+            }
+
+            sema_errorf(context, expression, "no field named '%.*s'", strp(expression->field_name));
+            return null;
+        }
+        case AST_EXPRESSION_INDEX: {
+            Type *field_type = sema_analyze_expression(context, expression->index_target);
+            if (field_type->kind != TYPE_ARRAY) {
+                sema_errorf(context, expression->index_target, "can only index arrays");
+                return null;
+            }
+
+            Type *index_type = sema_analyze_expression(context, expression->index_index);
+            if (!type_is_integer(index_type)) {
+                sema_errorf(context, expression->index_target, "array index can only be of an integer type");
+                return null;
+            }
+
+            expression->base_type = field_type->base_type;
+            return field_type->base_type;
+        }
         case AST_EXPRESSION_CAST: {
             Type *target = sema_analyze_expression(context, expression->cast_target);
             Type *resolved = sema_resolve_type(context, expression->cast_type);
@@ -364,24 +527,34 @@ static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expressi
             expression->base_type = resolved;
             return resolved;
         }
-            // case AST_EXPRESSION_COMPOUND:
-            // case AST_EXPRESSION_COMPOUND_FIELD:
-            // case AST_EXPRESSION_COMPOUND_FIELD_NAME:
-            // case AST_EXPRESSION_COMPOUND_FIELD_INDEX:
+        case AST_EXPRESSION_COMPOUND: return sema_analyze_expression_compound(context, expression, expected);
         default: unimplemented; return null;
     }
+
+    unimplemented;
+    return null;
+}
+
+static Type *sema_analyze_expression(SemanticContext *context, ASTNode *expression) {
+    return sema_analyze_expression_expected(context, expression, null);
 }
 
 static Type *sema_analyze_initializer(SemanticContext *context, ASTNode *typedecl, ASTNode *initializer) {
     if (typedecl) {
         Type *resolved = sema_resolve_type(context, typedecl);
-        if (initializer) unimplemented;
+        if (initializer) {
+            Type *expected = sema_analyze_expression_expected(context, initializer, resolved);
+            if (!sema_node_convert_implicit(initializer, resolved)) {
+                sema_errorf(context, initializer, "initializer has the wrong type");
+                return null;
+            }
+        }
 
         return resolved;
     }
 
     if (!initializer) {
-        vector_push(context->errors, make_errorf(typedecl, "Inferred initializer requires a value"));
+        sema_errorf(context, typedecl, "inferred initializer requires a value");
         return null;
     }
 
@@ -419,7 +592,7 @@ static bool sema_analyze_statement_if(SemanticContext *context, ASTNode *stateme
     else if (statement->if_expression) {
         SemanticEntry *entry = sema_resolve_name(context, statement->if_expression->init_name);
         if (!type_is_scalar(entry->type)) {
-            vector_push(context->errors, make_errorf(statement->if_expression, "expression must be scalar"));
+            sema_errorf(context, statement->if_expression, "expression must be scalar");
             return false;
         }
     }
@@ -434,51 +607,65 @@ static bool sema_analyze_statement_if(SemanticContext *context, ASTNode *stateme
     return returns;
 }
 
-static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode *statement) {
-    bool has_default = false;
-    bool every_case_returns = true;
+static bool sema_analyze_statement_while(SemanticContext *context, ASTNode *statement) {
+    SemanticScope *old_scope = context->scope;
+    context->scope = make_scope(old_scope);
 
+    sema_analyze_expression(context, statement->while_condition);
+
+    context->scope->can_break = true;
+    context->scope->can_continue = true;
+
+    sema_analyze_statement(context, statement->while_body);
+
+    context->scope = old_scope;
+    return false;
+}
+
+static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode *statement, Type *expression_type, bool *has_default) {
     vector_foreach_ptr(ASTNode, switch_pattern_ptr, statement->switch_case_patterns) {
         ASTNode *switch_pattern = *switch_pattern_ptr;
 
-        Type *pattern_start = sema_analyze_expression(context, switch_pattern->switch_pattern_start);
-        Type *pattern_end = switch_pattern->switch_pattern_end
-                                    ? sema_analyze_expression(context, switch_pattern->switch_pattern_end)
-                                    : null;
-    }
-#if 0
-for (SwitchCasePattern &pattern : switchCase.patterns) {
-    Expression *startExpression = pattern.start;
-    Expression *endExpression = pattern.end;
-    Operand startOperand = ResolveConstExpression(startExpression);
-    if (!ConvertOperand(&startOperand, operand.type))
-        Error(startExpression->location, "Invalid type in switch case expression. Expected %s, got %s", GetTypeName(operand.type), GetTypeName(startOperand.type));
-    if (endExpression) {
-        Operand endOperand = ResolveConstExpression(endExpression);
-        if (!ConvertOperand(&endOperand, operand.type))
-            Error(endExpression->location, "Invalid type in switch case expression. Expected %s, got %s", GetTypeName(operand.type), GetTypeName(endOperand.type));
-        ConvertOperand(&startOperand, Bi64);
-        SetResolvedValue(startExpression, startOperand.value);
-        ConvertOperand(&endOperand, Bi64);
-        SetResolvedValue(endExpression, endOperand.value);
-        if (endOperand.value.i64 < startOperand.value.i64)
-            Error(startExpression->location, "Case range end value cannot be less than start value");
-        if (endOperand.value.i64 - startOperand.value.i64 >= 256)
-            Error(startExpression->location, "Case range cannot span more than 256 values");
-    }
-}
-if (switchCase.isDefault) {
-    if (hasDefault) Error(statement->location, "Switch statement has multiple default clauses");
-    hasDefault = true;
-}
-if (switchCase.block.statements.length > 1) {
-    Statement *lastStatement = *switchCase.block.statements.Last();
-    if (lastStatement->kind == STMT_BREAK)
-        Warn(lastStatement->location, "Case blocks already end with an implicit break");
-}
-#endif
+        sema_analyze_expression(context, switch_pattern->switch_pattern_start);
+        if (!sema_node_convert_implicit(switch_pattern->switch_pattern_start, expression_type)) {
+            sema_errorf(context, switch_pattern->switch_pattern_start, "invalid type in switch case start.");
+            return false;
+        }
 
-    return has_default && every_case_returns;
+        if (switch_pattern->switch_pattern_end) {
+            sema_analyze_expression(context, switch_pattern->switch_pattern_end);
+            if (!sema_node_convert_implicit(switch_pattern->switch_pattern_end, expression_type)) {
+                sema_errorf(context, switch_pattern->switch_pattern_end, "invalid type in switch case end.");
+                return false;
+            }
+
+            // TODO: Check that start <= end
+        }
+    }
+
+    if (statement->switch_case_is_default) {
+        if (*has_default) sema_errorf(context, statement, "switch statement has multiple default cases");
+        *has_default = true;
+    }
+
+    return sema_analyze_statement(context, statement->switch_case_body);
+}
+
+static bool sema_analyze_statement_for(SemanticContext *context, ASTNode *statement) {
+    SemanticScope *old_scope = context->scope;
+    context->scope = make_scope(old_scope);
+
+    if (statement->for_initializer) sema_analyze_statement(context, statement->for_initializer);
+    if (statement->for_condition) sema_analyze_expression(context, statement->for_condition);// TODO: Check if its a valid condition.
+    if (statement->for_increment) sema_analyze_statement(context, statement->for_increment);
+
+    context->scope->can_break = true;
+    context->scope->can_continue = true;
+
+    sema_analyze_statement(context, statement->for_body);
+
+    context->scope = old_scope;
+    return false;
 }
 
 static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *statement) {
@@ -487,15 +674,16 @@ static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *sta
 
     Type *expression_type = sema_analyze_expression(context, statement->switch_expression);
     if (!type_is_integer(expression_type) && expression_type != context->type_string) {
-        vector_push(context->errors, make_errorf(statement->switch_expression, "switch expression must be integer or string"));
+        sema_errorf(context, statement->switch_expression, "switch expression must be integer or string");
         return false;
     }
 
-    context->is_break_legal = true;
+    context->scope->can_break = true;
 
     bool returns = true;
-    vector_foreach_ptr(ASTNode, switch_case, statement->switch_case_body->statements)
-            returns = sema_analyze_statement_switch_case(context, *switch_case) || returns;
+    bool has_default = false;
+    vector_foreach_ptr(ASTNode, switch_case, statement->switch_cases)
+            returns = sema_analyze_statement_switch_case(context, *switch_case, expression_type, &has_default) && returns;
 
 
     context->scope = old_scope;
@@ -505,7 +693,7 @@ static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *sta
 static bool sema_analyze_statement_init(SemanticContext *context, ASTNode *statement) {
     Type *resolved = sema_analyze_initializer(context, statement->init_type, statement->init_value);
     if (sema_get(context->scope, statement->init_name)) {
-        vector_push(context->errors, make_errorf(statement, "redefinition of %.*s", strp(statement->init_name)));
+        sema_errorf(context, statement, "redefinition of %.*s", strp(statement->init_name));
         return false;
     }
 
@@ -537,9 +725,9 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
     switch (statement->kind) {
         case AST_STATEMENT_BLOCK: return sema_analyze_statement_block(context, statement);
         case AST_STATEMENT_IF: return sema_analyze_statement_if(context, statement);
-        // case AST_STATEMENT_WHILE:
-        // case AST_STATEMENT_DO_WHILE:
-        // case AST_STATEMENT_FOR:
+        case AST_STATEMENT_WHILE:
+        case AST_STATEMENT_DO_WHILE: return sema_analyze_statement_while(context, statement);
+        case AST_STATEMENT_FOR: return sema_analyze_statement_for(context, statement);
         case AST_STATEMENT_SWITCH: return sema_analyze_statement_switch(context, statement);
         // case AST_STATEMENT_BREAK:
         // case AST_STATEMENT_CONTINUE:
@@ -548,10 +736,8 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
                 sema_analyze_expression(context, statement->parent);
             return true;
         }
-        case AST_STATEMENT_INIT:
-            sema_analyze_statement_init(context, statement);
-            return false;
-            // case AST_STATEMENT_EXPRESSION:
+        case AST_STATEMENT_INIT: sema_analyze_statement_init(context, statement); return false;
+        case AST_STATEMENT_EXPRESSION: sema_analyze_expression(context, statement->parent); return false;
         case AST_STATEMENT_ASSIGN: sema_analyze_statement_assign(context, statement); return false;
         default: unimplemented; return false;
     }
@@ -607,10 +793,10 @@ static bool sema_analyze_function(SemanticContext *context, ASTNode *function) {
 static bool sema_analyze_declaration(SemanticContext *context, ASTNode *declaration) {
     switch (declaration->kind) {
         case AST_DECLARATION_ALIAS: return true;
-        case AST_DECLARATION_AGGREGATE: vector_push(context->errors, make_errorf(declaration, "unsupported declaration")); return false;
+        case AST_DECLARATION_AGGREGATE: return true;
         case AST_DECLARATION_VARIABLE: return sema_analyze_variable(context, declaration);
         case AST_DECLARATION_FUNCTION: return sema_analyze_function(context, declaration);
-        default: vector_push(context->errors, make_errorf(declaration, "unsupported declaration")); return false;
+        default: sema_errorf(context, declaration, "unsupported declaration"); return false;
     }
 }
 

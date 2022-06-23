@@ -354,6 +354,12 @@ typedef enum {
     TYPE_AGGREGATE,
 } TypeKind;
 
+typedef struct TypeField {
+    string name;
+    Type *type;
+    bool address_only;
+} TypeField;
+
 struct Type {
     TypeKind kind;
     u32 typeid;
@@ -366,7 +372,19 @@ struct Type {
         struct {
             Type **function_parameters;
             Type *function_return_type;
+            bool function_is_variadic;
         };
+
+        struct {
+            Type *array_base;
+            u32 array_size;
+        };
+
+        struct {
+            TypeField *fields;
+            bool is_complete;
+        };
+
     };
 };
 
@@ -402,6 +420,8 @@ typedef struct {
 typedef struct SemanticScope SemanticScope;
 struct SemanticScope {
     StringTable entries;
+    bool can_break;
+    bool can_continue;
     SemanticScope *parent;
 };
 
@@ -428,9 +448,6 @@ typedef struct {
     Type *type_f32;
     Type *type_f64;
     Type *type_string;
-
-    bool is_break_legal;
-    bool is_continue_legal;
 } SemanticContext;
 
 SemanticContext *sema_initialize();

@@ -67,3 +67,27 @@ fun Test15(): i32 {
 	return hello;
 
 }
+
+fun Test55(hello: i32): i32 {
+	test2 := 90;
+	switch (hello) {
+		case 1: test2 = 80;
+	}
+	return test2;
+}
+fun Test56(hello: i32): i32 {
+	test2 := 90;
+	switch (hello) {
+		case 1: test2 = 80;
+		default: test2 = 70;
+	}
+	return test2;
+}
+
+fun Test66(): i32 {
+    return Test67(0);
+}
+
+fun Test67(a: i32): i32 {
+    return Test3(a + 6) * 4;
+}

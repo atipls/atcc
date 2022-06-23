@@ -339,3 +339,35 @@ __block17: ;
     if (V26) goto __block11; else goto __block12;
 }
 
+i32 Test55(i32 param0) {
+    char STACK[4];
+__block0: ;
+    *((i32*)(&STACK[0])) = ((i32)(90));
+    ; // nop
+    i32 V1 = *((i32*)(&STACK[0]));
+    return V1;
+}
+
+i32 Test56(i32 param0) {
+    char STACK[4];
+__block0: ;
+    *((i32*)(&STACK[0])) = ((i32)(90));
+    ; // nop
+    i32 V1 = *((i32*)(&STACK[0]));
+    return V1;
+}
+
+i32 Test66(void) {
+__block0: ;
+    i32 V1 = Test67(((i32)(0)));
+    return V1;
+}
+
+i32 Test67(i32 param0) {
+__block0: ;
+    i32 V1 = param0 + ((i32)(6));
+    i32 V2 = Test3(V1);
+    i32 V4 = V2 * ((i32)(4));
+    return V4;
+}
+

@@ -16,6 +16,7 @@ typedef enum {
     BC_VALUE_IS_TEMPORARY = (1 << 3),
     BC_VALUE_IS_ON_STACK = (1 << 4),
     BC_VALUE_IS_GLOBAL = (1 << 5),
+    BC_VALUE_IS_FUNCTION = (1 << 6),
 } BCValueFlags;
 
 struct SBCValue {
@@ -136,6 +137,12 @@ struct SBCCode {
             BCBlock bbT;
             BCBlock bbF;
         };
+        struct {
+            BCValue target;
+            BCValue result;
+            BCValue *args;
+            u32 num_args;
+        };
     };
 };
 
@@ -208,6 +215,7 @@ BCValue bc_insn_ge(BCFunction function, BCValue arg1, BCValue arg2);
 BCCode bc_insn_jump(BCFunction function, BCBlock block);
 BCCode bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block_true, BCBlock block_false);
 
+BCValue bc_insn_call(BCFunction function, BCValue target, BCValue *args, u32 num_args);
 BCValue bc_insn_return(BCFunction function, BCValue value);
 
 BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCType target);
