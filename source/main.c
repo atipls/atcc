@@ -42,7 +42,7 @@ i32 main(i32 argc, cstring argv[]) {
     options.output = str("generated");
 #if 0
     if (!parse_options(argc, argv)) {
-        fprintf(stderr, "Usage: atcc [options] [files]\n");
+        fprintf(stderr, "Usage: atcc [options] <files>\n");
         return 1;
     }
 #else

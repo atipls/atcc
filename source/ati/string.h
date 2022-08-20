@@ -1,11 +1,12 @@
 #pragma once
 
 #include "basic.h"
+#include "utils.h"
 
 typedef char *cstring;
 
 typedef struct string {
-    i8 *data;
+    Vec(i8) data;
     u64 length;
 } string;
 

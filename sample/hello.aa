@@ -92,8 +92,8 @@ struct TestStruct {
 	third: f32;
 }
 
-struct Awesome {
-	self: Awesome*;
+struct Foo {
+	self: Foo*;
 }
 
 fun Test9(): f32 {
@@ -207,8 +207,8 @@ fun Main(argc: i32, argv: i8**): i32 {
 }
 fun StrLength(str: i8*): usize;
 
-fun Test19(awesome: Awesome*): Awesome* {
-	xxx := awesome.self;
+fun Test19(foo: Foo*): Foo* {
+	xxx := foo.self;
 	return xxx.self;
 }
 
