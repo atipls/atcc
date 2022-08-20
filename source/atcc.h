@@ -381,6 +381,7 @@ struct Type {
         };
 
         struct {
+            ASTNode *owner;
             TypeField *fields;
             bool is_complete;
         };

@@ -128,6 +128,7 @@ bool sema_register_program(SemanticContext *context, ASTNode *program) {
                 SemanticEntry *entry = sema_get(context->scope, node->aggregate_name);
                 entry->state = SEMA_STATE_RESOLVED;
                 entry->type = make_type(TYPE_AGGREGATE, 0, 0);
+                entry->type->owner = node;
 
                 break;
             }
@@ -185,48 +186,6 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
     }
 }
 
-static u32 sema_resolve_aggregate_item(SemanticContext *context, ASTNode *node, TypeField **fields, bool address_only) {
-    switch (node->kind) {
-        case AST_DECLARATION_AGGREGATE_FIELD: {
-            Type *type = sema_resolve_type(context, node->aggregate_type);
-            if (!type) return 0;
-
-            u32 total_size = 0;
-            vector_foreach(string, name, node->aggregate_names) {
-                TypeField *field = vector_add(*fields, 1);
-                field->name = *name;
-                field->type = type;
-                field->address_only = address_only;
-                total_size += type->size;
-            }
-
-            if (address_only)
-                return type->size;
-
-            return total_size;
-        }
-        case AST_DECLARATION_AGGREGATE_CHILD: {
-            u32 total_size = 0;
-            vector_foreach_ptr(ASTNode, child, node->aggregate_items)
-                    total_size += sema_resolve_aggregate_item(context, *child, fields, node->aggregate_kind == TOKEN_KW_UNION);
-            return total_size;
-        }
-        default: assert(!"unreachable"); return 0;
-    }
-}
-
-static Type *sema_resolve_aggregate_type(SemanticContext *context, ASTNode *node) {
-    TypeField *fields = null;
-    u32 total_size = 0;
-    vector_foreach_ptr(ASTNode, field, node->aggregate_items)
-            total_size += sema_resolve_aggregate_item(context, *field, &fields, node->aggregate_kind == TOKEN_KW_UNION);
-
-    Type *type = make_type(TYPE_AGGREGATE, total_size, total_size);// TODO: alignment
-    type->fields = fields;
-
-    return type;
-}
-
 static Type *sema_resolve_function_type(SemanticContext *context, ASTNode *node) {
     if (node->base_type) return node->base_type;
 
@@ -258,20 +217,17 @@ static bool sema_resolve_entry(SemanticContext *context, SemanticEntry *entry) {
     switch (entry->kind) {
         case SEMA_ENTRY_NONE: break;
         case SEMA_ENTRY_TYPE: {
+            // Every aggregate should be resolved as we never make an unresolved one, only incomplete ones.
+            assert(entry->node->kind != AST_DECLARATION_AGGREGATE);
+
             if (entry->node->kind == AST_DECLARATION_ALIAS) {
                 entry->type = sema_resolve_type(context, entry->node->alias_type);
-                break;
-            }
-
-            if (entry->node->kind == AST_DECLARATION_AGGREGATE) {
-                entry->type = sema_resolve_aggregate_type(context, entry->node->aggregate);
                 break;
             }
 
             sema_errorf(context, entry->node, "unimplemented type");
             entry->type = null;
             unimplemented;
-
             break;
         }
         case SEMA_ENTRY_VARIABLE: {
@@ -292,8 +248,57 @@ static SemanticEntry *sema_resolve_name(SemanticContext *context, string name) {
     return null;
 }
 
-static bool sema_analyze_aggregate() {
 
+static u32 sema_resolve_aggregate_item(SemanticContext *context, ASTNode *node, TypeField **fields, bool address_only) {
+    switch (node->kind) {
+        case AST_DECLARATION_AGGREGATE_FIELD: {
+            Type *type = sema_resolve_type(context, node->aggregate_type);
+            if (!type) return 0;
+
+            u32 total_size = 0;
+            vector_foreach(string, name, node->aggregate_names) {
+                TypeField *field = vector_add(*fields, 1);
+                field->name = *name;
+                field->type = type;
+                field->address_only = address_only;
+                total_size += type->size;
+            }
+
+            if (address_only)
+                return type->size;
+
+            return total_size;
+        }
+        case AST_DECLARATION_AGGREGATE_CHILD: {
+            u32 total_size = 0;
+            vector_foreach_ptr(ASTNode, child, node->aggregate_items)
+                    total_size += sema_resolve_aggregate_item(context, *child, fields, node->aggregate_kind == TOKEN_KW_UNION);
+            return total_size;
+        }
+        default: assert(!"unreachable"); return 0;
+    }
+}
+
+static bool sema_complete_aggregate(SemanticContext *context, Type* aggregate) {
+    if (!aggregate || aggregate->kind != TYPE_AGGREGATE)
+        return false;
+    if (aggregate->is_complete)
+        return true;
+
+    ASTNode *node = aggregate->owner->aggregate;
+
+    TypeField *fields = null;
+    u32 total_size = 0;
+    vector_foreach_ptr(ASTNode, field, node->aggregate_items)
+            total_size += sema_resolve_aggregate_item(context, *field, &fields, node->aggregate_kind == TOKEN_KW_UNION);
+
+    aggregate->size = total_size;
+    aggregate->pack = total_size; // TODO: alignment
+
+    aggregate->fields = fields;
+    aggregate->is_complete = true;
+
+    return true;
 }
 
 static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
@@ -337,7 +342,7 @@ static void sema_unify_binary_operands(SemanticContext *context, ASTNode *left, 
     else {
         sema_errorf(context, left, "incompatible types (unimplemented)");
         right->conv_type = node_type(left);
-        // unimplemented;
+        unimplemented;
     }
 }
 
@@ -480,6 +485,15 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
         }
         case AST_EXPRESSION_FIELD: {
             Type *field_type = sema_analyze_expression(context, expression->field_target);
+            if (field_type->kind == TYPE_POINTER)
+                field_type = field_type->base_type;
+
+            // TODO: add support for arrays and strings.
+            if (field_type->kind != TYPE_AGGREGATE)
+                sema_errorf(context, expression->field_target, "cannot use a field of a non-aggregate.");
+
+            if (!sema_complete_aggregate(context, field_type))
+                sema_errorf(context, expression, "cannot use incomplete type here");
 
             vector_foreach(TypeField, field, field_type->fields) {
                 if (string_match(field->name, expression->field_name)) {

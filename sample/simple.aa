@@ -91,3 +91,15 @@ fun Test66(): i32 {
 fun Test67(a: i32): i32 {
     return Test3(a + 6) * 4;
 }
+
+struct Foo {
+    foo: Foo*;
+    value: i32;
+};
+
+fun Test68(): i32 {
+    a := Foo{};
+    a.foo = &a;
+    a.foo.value = 19132;
+    return a.value;
+}
