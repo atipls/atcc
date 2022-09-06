@@ -1,18 +1,14 @@
 #include "config.h"
+#include "utils.h"
 
 bool options_parse(string filename, option *options) {
-    cstring filename_as_cstring = string_to_cstring(filename);
-    FILE *file = fopen(filename_as_cstring, "r");
-    free(filename_as_cstring);
-
-    if (!file)
+    Buffer buffer = read_file(filename);
+    if (!buffer.length)
         return false;
 
-    cstring line = NULL;
-    size_t line_length = 0;
 
 
-    return false;
+    return true;
 }
 
 bool options_get(option *options, string key, string *value) {

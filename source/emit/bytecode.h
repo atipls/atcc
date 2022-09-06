@@ -55,11 +55,27 @@ struct SBCType {
     u32 alignment;
     bool is_signed;
     bool is_floating;
-    BCValue count;
-    BCType subtype;
-    BCAggregate *members;
-    BCType *params;
-    u32 num_params;
+
+    union {
+        BCType base;
+
+        struct {
+            BCType element;
+            BCValue count;
+        };
+
+        struct {
+            BCAggregate *members;
+            u32 num_members;
+            string name;
+        };
+
+        struct {
+            BCType result;
+            BCType *params;
+            u32 num_params;
+        };
+    };
 };
 
 extern BCType bc_type_void;
@@ -72,15 +88,19 @@ extern BCType bc_type_f32, bc_type_f64;
 BCType bc_type_pointer(BCType type);
 BCType bc_type_array(BCType type, BCValue size);
 BCType bc_type_function(BCType result, BCType *params, u32 num_params);
-BCType bc_type_aggregate(BCType type, string name, u32 offset);
+BCType bc_type_aggregate(BCContext context, string name);
+void bc_type_aggregate_set_body(BCType aggregate, BCAggregate *members, u32 num_members);
+
 bool bc_type_is_integer(BCType type);
 
 typedef enum {
     BC_OP_NOP,
 
     BC_OP_LOAD,
-    BC_OP_LOAD_ADDRESS,
     BC_OP_STORE,
+
+    BC_OP_GET_ELEMENT,
+    BC_OP_GET_FIELD,
 
     BC_OP_ADD,
     BC_OP_SUB,
@@ -170,6 +190,7 @@ struct SBCFunction {
 };
 
 struct SBCContext {
+    BCType *aggregates;
     BCFunction *functions;
     u32 global_size;
 };
@@ -189,8 +210,8 @@ BCCode bc_insn_make(BCBlock block);
 BCValue bc_insn_nop(BCFunction function);
 
 BCValue bc_insn_load(BCFunction function, BCValue source);
-BCValue bc_insn_load_address(BCFunction function, BCValue source);
 BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue source);
+BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 index);
 
 
 BCValue bc_insn_add(BCFunction function, BCValue arg1, BCValue arg2);

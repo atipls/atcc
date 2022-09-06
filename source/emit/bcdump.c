@@ -28,7 +28,7 @@ static void bc_dump_type(BCType type, FILE *f) {
     switch (type->kind) {
         case BC_TYPE_BASE: bc_dump_type_base(type, f); break;
         case BC_TYPE_POINTER:
-            bc_dump_type_base(type->subtype, f);
+            bc_dump_type(type->base, f);
             fprintf(f, "*");
             break;
         case BC_TYPE_ARRAY: break;
@@ -39,12 +39,14 @@ static void bc_dump_type(BCType type, FILE *f) {
                 if (i != type->num_params - 1) fprintf(f, ", ");
             }
             fprintf(f, ")");
-            if (type->subtype) {
+            if (type->result) {
                 fprintf(f, ": ");
-                bc_dump_type(type->subtype, f);
+                bc_dump_type(type->result, f);
             }
             break;
-        case BC_TYPE_AGGREGATE: break;
+        case BC_TYPE_AGGREGATE:
+            fprintf(f, "%.*s", strp(type->name));
+            break;
     }
 }
 
@@ -122,7 +124,20 @@ static void bc_dump_code(BCCode code, FILE *f) {
             fprintf(f, " = load ");
             bc_dump_value(code->regA, f);
             break;
-        case BC_OP_LOAD_ADDRESS: fprintf(f, "insn load_address"); break;
+        case BC_OP_GET_ELEMENT:
+            bc_dump_value(code->regD, f);
+            fprintf(f, " = ");
+            bc_dump_value(code->regA, f);
+            fprintf(f, "[");
+            bc_dump_value(code->regB, f);
+            fprintf(f, "]");
+            break;
+        case BC_OP_GET_FIELD:
+            bc_dump_value(code->regD, f);
+            fprintf(f, " = ");
+            bc_dump_value(code->regA, f);
+            fprintf(f, "[field %llu]", code->regB->storage);
+            break;
         case BC_OP_STORE:
             fprintf(f, "store ");
             bc_dump_value(code->regA, f);

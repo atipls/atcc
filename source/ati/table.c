@@ -71,7 +71,7 @@ void *string_table_get(StringTable *table, string key) {
     if (table->length == 0) return null;
 
     StringTableEntry *entry = string_table_find_entry(table->entries, table->capacity, key);
-    if (entry->key.length == 0) return false;
+    if (entry->key.length == 0) return null;
 
     return entry->value;
 }

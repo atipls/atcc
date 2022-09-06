@@ -459,6 +459,7 @@ typedef struct {
     SemanticContext *sema;
     BCContext bc;
 
+    StringTable aggregates;
     StringTable functions;
     StringTable globals;
     StringTable locals;

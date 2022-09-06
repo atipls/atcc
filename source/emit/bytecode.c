@@ -66,7 +66,7 @@ BCType bc_type_pointer(BCType type) {
     BCType pointer = make(struct SBCType);
     pointer->kind = BC_TYPE_POINTER;
     pointer->size = pointer->alignment = POINTER_SIZE;
-    pointer->subtype = type;
+    pointer->base = type;
     return pointer;
 }
 
@@ -74,7 +74,7 @@ BCType bc_type_array(BCType type, BCValue size) {
     BCType array = make(struct SBCType);
     array->kind = BC_TYPE_ARRAY;
     array->size = array->alignment = POINTER_SIZE; // TODO: This should be a fat pointer, ptr+size
-    array->subtype = type;
+    array->element = type;
     array->count = size;
     return array;
 }
@@ -83,10 +83,33 @@ BCType bc_type_function(BCType result, BCType *params, u32 num_params) {
     BCType function = make(struct SBCType);
     function->kind = BC_TYPE_FUNCTION;
     function->size = function->alignment = POINTER_SIZE;
-    function->subtype = result;
+    function->result = result;
     function->params = params;
     function->num_params = num_params;
     return function;
+}
+
+BCType bc_type_aggregate(BCContext context, string name) {
+    BCType aggregate = make(struct SBCType);
+    aggregate->kind = BC_TYPE_AGGREGATE;
+    aggregate->name = name;
+
+    vector_push(context->aggregates, aggregate);
+    return aggregate;
+}
+
+void bc_type_aggregate_set_body(BCType aggregate, BCAggregate *members, u32 num_members) {
+    aggregate->members = members;
+    aggregate->num_members = num_members;
+
+    // TODO: Better alignment/union calculation.
+    u32 total_size = 0;
+    for (u32 i = 0; i < num_members; i++) {
+        BCAggregate *member = &members[i];
+        total_size += member->type->size;
+    }
+
+    aggregate->size = aggregate->alignment = total_size;
 }
 
 bool bc_type_is_integer(BCType type) {
@@ -192,18 +215,27 @@ BCValue bc_insn_load(BCFunction function, BCValue source) {
     BCCode insn = bc_insn_of(function);
     insn->opcode = BC_OP_LOAD;
     insn->regA = source;
-    insn->regD = bc_value_make(function, source->type->subtype);
+    insn->regD = bc_value_make(function, source->type->base);
 
     return insn->regD;
 }
-
-BCValue bc_insn_load_address(BCFunction function, BCValue source) { BC_TODO(); }
 
 BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue source) {
     BCCode insn = bc_insn_of(function);
     insn->opcode = BC_OP_STORE;
     insn->regA = source;
     insn->regD = dest;
+
+    return insn->regD;
+}
+
+BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 field) {
+    BCCode insn = bc_insn_of(function);
+
+    insn->opcode = BC_OP_GET_FIELD;
+    insn->regA = source;
+    insn->regB = bc_value_make_consti(function, bc_type_u64, field);
+    insn->regD = bc_value_make(function, bc_type_pointer(type));
 
     return insn->regD;
 }
@@ -266,7 +298,7 @@ BCValue bc_insn_call(BCFunction function, BCValue target, BCValue *args, u32 num
     insn->opcode = BC_OP_CALL;
 
     insn->target = target;
-    insn->result = bc_value_make(function, target->type->subtype);
+    insn->result = bc_value_make(function, target->type->result);
     insn->args = args;
     insn->num_args = num_args;
 

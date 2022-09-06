@@ -16,10 +16,10 @@ add_executable(atcc
         source/main.c
         source/lexer.c
         source/parser.c
-        source/dot.c
+        source/debug.c
         source/sema.c
         source/type.c
-        source/emit/bcdump.c source/emit/amd64.c source/emit/source.c source/gen.c source/ati/config.h source/ati/config.c)
+        source/emit/bcdump.c source/emit/amd64.c source/emit/source.c source/lower.c source/ati/config.h source/ati/config.c)
 
 target_include_directories(atcc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source)
 

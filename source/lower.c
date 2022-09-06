@@ -6,40 +6,78 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
 
     static BCType bc_type_string = null;
 
-    if (type == context->sema->type_void) return bc_type_void;
-    if (type == context->sema->type_i8) return bc_type_i8;
-    if (type == context->sema->type_u8) return bc_type_u8;
-    if (type == context->sema->type_i16) return bc_type_i16;
-    if (type == context->sema->type_u16) return bc_type_u16;
-    if (type == context->sema->type_i32) return bc_type_i32;
-    if (type == context->sema->type_u32) return bc_type_u32;
-    if (type == context->sema->type_i64) return bc_type_i64;
-    if (type == context->sema->type_u64) return bc_type_u64;
-    if (type == context->sema->type_f32) return bc_type_f32;
-    if (type == context->sema->type_f64) return bc_type_f64;
-    if (type == context->sema->type_string) {
-        assert(!"TODO: string type in bcgen.");
-        return bc_type_string;
-    }
-
-    if (type->kind == TYPE_POINTER) {
-        BCType base_type = build_convert_type(context, type->base_type);
-        return bc_type_pointer(base_type);
-    }
-
-    if (type->kind == TYPE_FUNCTION) {
-        BCType result = build_convert_type(context, type->function_return_type);
-        BCType *parameters = null;
-        vector_foreach_ptr(Type, parameter_ptr, type->function_parameters) {
-            BCType parameter = build_convert_type(context, *parameter_ptr);
-            vector_push(parameters, parameter);
+    switch (type->kind) {
+        case TYPE_VOID: return bc_type_void;
+        case TYPE_I8: return bc_type_i8;
+        case TYPE_U8: return bc_type_u8;
+        case TYPE_I16: return bc_type_i16;
+        case TYPE_U16: return bc_type_u16;
+        case TYPE_I32: return bc_type_i32;
+        case TYPE_U32: return bc_type_u32;
+        case TYPE_I64: return bc_type_i64;
+        case TYPE_U64: return bc_type_u64;
+        case TYPE_F32: return bc_type_f32;
+        case TYPE_F64: return bc_type_f64;
+        case TYPE_POINTER: {
+            BCType base_type = build_convert_type(context, type->base_type);
+            return bc_type_pointer(base_type);
         }
+        case TYPE_FUNCTION: {
+            BCType result = build_convert_type(context, type->function_return_type);
+            BCType *parameters = null;
+            vector_foreach_ptr(Type, parameter_ptr, type->function_parameters) {
+                BCType parameter = build_convert_type(context, *parameter_ptr);
+                vector_push(parameters, parameter);
+            }
 
-        return bc_type_function(result, parameters, vector_len(parameters));
+            return bc_type_function(result, parameters, vector_len(parameters));
+        }
+        case TYPE_STRING: {
+            if (!bc_type_string) {
+                BCAggregate members[2] = {
+                    { bc_type_u64, str("length"), 0 },
+                    { bc_type_pointer(bc_type_u8), str("data"), 8 },
+                };
+
+                bc_type_string = bc_type_aggregate(context->bc, str("string"));
+                bc_type_aggregate_set_body(bc_type_string, members, 2);
+            }
+
+            return bc_type_string;
+        }
+        case TYPE_ARRAY: {
+            assert(!"not implemented");
+            return bc_type_void;
+        }
+        case TYPE_AGGREGATE: {
+            assert(type->is_complete);
+            string name = type->owner->aggregate_name;
+            BCType aggregate = string_table_get(&context->aggregates, name);
+            if (!aggregate) {
+                aggregate = bc_type_aggregate(context->bc, name);
+                string_table_set(&context->aggregates, name, aggregate);
+
+                BCAggregate *members = null;
+                u32 offset = 0;
+                vector_foreach(TypeField, field, type->fields) {
+                    BCType target_type = build_convert_type(context, field->type);
+                    string target_name = field->name;
+
+                    BCAggregate *member = vector_add(members, 1);
+                    member->type = target_type;
+                    member->name = target_name;
+                    member->offset = offset;
+
+                    if (!field->address_only)
+                        offset += target_type->size;
+                }
+
+                bc_type_aggregate_set_body(aggregate, members, vector_len(members));
+            }
+            return aggregate;
+        }
+        default: assert(!"TODO: type in bcgen."); return bc_type_void;
     }
-
-    assert(!"unimplemented");
-    return null;
 }
 
 static BCValue build_resolve_name(BuildContext *context, string name) {
@@ -218,6 +256,23 @@ static BCValue build_expression_cast(BuildContext *context, ASTNode *expression)
     return bc_insn_cast(context->function, cast_opcode, target, type_dst);
 }
 
+static BCValue build_expression_compound(BuildContext *context, ASTNode *expression) {
+    BCType type = build_convert_type(context, node_type(expression));
+    BCValue compound = bc_function_define(context->function, type);
+
+    vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
+        ASTNode *field = *field_ptr;
+        switch (field->kind) {
+            case AST_EXPRESSION_COMPOUND_FIELD: { break; }
+            case AST_EXPRESSION_COMPOUND_FIELD_NAME: { break; }
+            case AST_EXPRESSION_COMPOUND_FIELD_INDEX: { break; }
+            default: assert(!"unreachable"); break;
+        }
+    }
+
+    return compound;
+}
+
 static BCValue build_expression(BuildContext *context, ASTNode *expression) {
     assert(!expression->conv_type);
 
@@ -249,10 +304,10 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
 
             return bc_insn_call(context->function, target, args, vector_len(args));
         }
-        // case AST_EXPRESSION_FIELD: return null;
-        // case AST_EXPRESSION_INDEX: return null;
+        case AST_EXPRESSION_FIELD:
+        case AST_EXPRESSION_INDEX: return bc_insn_load(context->function, build_expression_lvalue(context, expression));
         case AST_EXPRESSION_CAST: return build_expression_cast(context, expression);
-        // case AST_EXPRESSION_COMPOUND: return null;
+        case AST_EXPRESSION_COMPOUND: return bc_insn_load(context->function, build_expression_lvalue(context, expression));
         default: assert(!"unreachable"); return null;
     }
 }
@@ -269,9 +324,34 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             return resolved;
         }
         // case AST_EXPRESSION_CALL: return null;
-        // case AST_EXPRESSION_FIELD: return null;
+        case AST_EXPRESSION_FIELD: {
+            Type *type = node_type(expression->field_target);
+            BCValue target = null;
+
+            // Dereference the target if it's a pointer.
+            if (type->kind == TYPE_POINTER) {
+                target = build_expression(context, expression->field_target);
+                type = type->base_type;
+            } else target = build_expression_lvalue(context, expression->field_target);
+
+            assert(type->kind == TYPE_AGGREGATE);
+
+            BCType field_type = null;
+            u64 field_index = 0;
+            vector_foreach(TypeField, field, type->fields) {
+                if (string_match(expression->field_name, field->name)) {
+                    field_type = build_convert_type(context, field->type);
+                    break;
+                }
+                field_index++;
+            }
+
+            assert(field_type);
+
+            return bc_insn_get_field(context->function, target, field_type, field_index);
+        }
         // case AST_EXPRESSION_INDEX: return null;
-        // case AST_EXPRESSION_COMPOUND: return null;
+        case AST_EXPRESSION_COMPOUND: return build_expression_compound(context, expression);
         default: assert(!"unreachable"); return null;
     }
 }
@@ -445,6 +525,7 @@ BuildContext *build_initialize(SemanticContext *sema) {
     BuildContext *context = make(BuildContext);
     context->sema = sema;
     context->bc = bc_context_initialize();
+    string_table_create(&context->aggregates);
     string_table_create(&context->functions);
     string_table_create(&context->globals);
     string_table_create(&context->locals);

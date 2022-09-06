@@ -541,7 +541,11 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             expression->base_type = resolved;
             return resolved;
         }
-        case AST_EXPRESSION_COMPOUND: return sema_analyze_expression_compound(context, expression, expected);
+        case AST_EXPRESSION_COMPOUND: {
+            Type *resolved = sema_analyze_expression_compound(context, expression, expected);
+            expression->base_type = resolved;
+            return resolved;
+        }
         default: unimplemented; return null;
     }
 

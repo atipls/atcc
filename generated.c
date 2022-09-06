@@ -12,6 +12,40 @@ typedef float f32;
 typedef double f64;
 
 
+typedef struct Foo Foo;
+
+
+struct Foo {
+    /* 0x(0000) */Foo* foo;
+    /* 0x(0008) */i32 value;
+};
+
+
+
+void __atcc_init_globals(void);
+void Test0(void);
+void Test1(i32 param0);
+i32 Test2(i32 param0);
+i32 Test3(i32 param0);
+i32 Test4(i32 param0);
+i32 Test051(void);
+i32 Test052(void);
+i32 Test053(void);
+i32 Test054(void);
+i32 Test055(void);
+i32 Test056(void);
+i32 Test057(void);
+i32 Test5(i32 param0);
+i32 Test51(i32 param0);
+i32 Test52(i32 param0);
+i32 Test53(i32 param0);
+i32 Print(i8* param0);
+i32 Test15(void);
+i32 Test55(i32 param0);
+i32 Test56(i32 param0);
+i32 Test66(void);
+i32 Test67(i32 param0);
+i32 Test68(void);
 static char GLOBAL_VARIABLES[8];
 
 void __atcc_init_globals(void) {
@@ -369,5 +403,21 @@ __block0: ;
     i32 V2 = Test3(V1);
     i32 V4 = V2 * ((i32)(4));
     return V4;
+}
+
+i32 Test68(void) {
+    char STACK[24];
+__block0: ;
+    Foo V0 = *((Foo*)(&STACK[12]));
+    *((Foo*)(&STACK[0])) = V0;
+    Foo** V2 = &(((Foo*)(&STACK[0]))->foo);
+    *V2 = ((Foo*)(&STACK[0]));
+    Foo** V4 = &(((Foo*)(&STACK[0]))->foo);
+    Foo* V5 = *V4;
+    i32* V7 = &(V5->value);
+    *V7 = ((i32)(19132));
+    i32* V10 = &(((Foo*)(&STACK[0]))->value);
+    i32 V11 = *V10;
+    return V11;
 }
 

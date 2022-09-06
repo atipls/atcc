@@ -51,7 +51,7 @@ static void bc_generate_type(BCType type, FILE *f) {
     switch (type->kind) {
         case BC_TYPE_BASE: bc_generate_type_base(type, f); break;
         case BC_TYPE_POINTER:
-            bc_generate_type(type->subtype, f);
+            bc_generate_type(type->base, f);
             fprintf(f, "*");
             break;
         case BC_TYPE_ARRAY: assert(!"unimplemented"); break;
@@ -62,12 +62,12 @@ static void bc_generate_type(BCType type, FILE *f) {
                 if (i != type->num_params - 1) fprintf(f, ", ");
             }
             fprintf(f, ")");
-            if (type->subtype) {
+            if (type->result) {
                 fprintf(f, ": ");
-                bc_generate_type(type->subtype, f);
+                bc_generate_type(type->result, f);
             }
             break;
-        case BC_TYPE_AGGREGATE: assert(!"unimplemented"); break;
+        case BC_TYPE_AGGREGATE: fprintf(f, "%.*s", strp(type->name)); break;
     }
 }
 
@@ -139,7 +139,18 @@ static void bc_generate_code(BCCode code, FILE *f) {
             bc_generate_value(code->regA, f);
             fprintf(f, ";");
             break;
-        case BC_OP_LOAD_ADDRESS: fprintf(f, "// load_address"); break;
+        case BC_OP_GET_ELEMENT:
+            assert(!"unimplemented");
+            break;
+        case BC_OP_GET_FIELD:
+            bc_generate_type(code->regD->type, f);
+            fprintf(f, " ");
+            bc_generate_value(code->regD, f);
+            fprintf(f, " = &(");
+            bc_generate_value(code->regA, f);
+            fprintf(f, "->%.*s);", strp(code->regA->type->base->members[code->regB->storage].name));
+
+            break;
         case BC_OP_STORE:
             fprintf(f, "*");
             bc_generate_value(code->regD, f);
@@ -241,7 +252,7 @@ static void bc_generate_code(BCCode code, FILE *f) {
 }
 
 static void bc_generate_function_type(BCFunction function, FILE *f) {
-    bc_generate_type(function->signature->subtype, f);
+    bc_generate_type(function->signature->result, f);
     fprintf(f, " %.*s(", strp(function->name));
     if (function->signature->num_params == 0) {
         fprintf(f, "void)");
@@ -283,8 +294,37 @@ static void bc_generate_function(BCFunction function, FILE *f) {
     fprintf(f, "}\n\n");
 }
 
+static void bc_generate_aggregate(BCType aggregate, FILE *f) {
+    fprintf(f, "struct %.*s {\n", strp(aggregate->name));
+    for (u32 i = 0; i < aggregate->num_members; i++) {
+        fprintf(f, "    /* 0x(%04X) */", aggregate->members[i].offset);
+        bc_generate_type(aggregate->members[i].type, f);
+        fprintf(f, " %.*s;\n", strp(aggregate->members[i].name));
+    }
+    fprintf(f, "};\n\n");
+}
+
 bool bc_generate_source(BCContext context, FILE *f) {
     bc_generate_prelude(f);
+
+    vector_foreach(BCType, aggregate_ptr, context->aggregates) {
+        fprintf(f, "typedef struct %.*s %.*s;\n",
+                strp((*aggregate_ptr)->name), strp((*aggregate_ptr)->name)
+        );
+    }
+
+    fprintf(f, "\n\n");
+
+    vector_foreach(BCType, aggregate_ptr, context->aggregates)
+        bc_generate_aggregate(*aggregate_ptr, f);
+
+    fprintf(f, "\n\n");
+
+    vector_foreach(BCFunction, function_ptr, context->functions) {
+        bc_generate_function_type(*function_ptr, f);
+        fprintf(f, ";\n");
+    }
+
     fprintf(f, "static char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
 
     // TODO: Generate forward decls.

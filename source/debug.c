@@ -251,6 +251,8 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
         case AST_EXPRESSION_COMPOUND_FIELD: break;
         case AST_EXPRESSION_COMPOUND_FIELD_NAME: break;
         case AST_EXPRESSION_COMPOUND_FIELD_INDEX: break;
+        default: assert(!"unimplemented"); break;
+
     }
 
     return node;
