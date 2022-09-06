@@ -27,17 +27,17 @@ static void bc_generate_type_base(BCType type, FILE *f) {
         return;                \
     }
 
-    TYPE_BASE_OF(bc_type_void, "void");
-    TYPE_BASE_OF(bc_type_i8, "i8");
-    TYPE_BASE_OF(bc_type_u8, "u8");
-    TYPE_BASE_OF(bc_type_i16, "i16");
-    TYPE_BASE_OF(bc_type_u16, "u16");
-    TYPE_BASE_OF(bc_type_i32, "i32");
-    TYPE_BASE_OF(bc_type_u32, "u32");
-    TYPE_BASE_OF(bc_type_i64, "i64");
-    TYPE_BASE_OF(bc_type_u64, "u64");
-    TYPE_BASE_OF(bc_type_f32, "f32");
-    TYPE_BASE_OF(bc_type_f64, "f64");
+    TYPE_BASE_OF(bc_type_void, "void")
+    TYPE_BASE_OF(bc_type_i8, "i8")
+    TYPE_BASE_OF(bc_type_u8, "u8")
+    TYPE_BASE_OF(bc_type_i16, "i16")
+    TYPE_BASE_OF(bc_type_u16, "u16")
+    TYPE_BASE_OF(bc_type_i32, "i32")
+    TYPE_BASE_OF(bc_type_u32, "u32")
+    TYPE_BASE_OF(bc_type_i64, "i64")
+    TYPE_BASE_OF(bc_type_u64, "u64")
+    TYPE_BASE_OF(bc_type_f32, "f32")
+    TYPE_BASE_OF(bc_type_f64, "f64")
 
     fprintf(f, "<ICE: unknown base type>");
 }

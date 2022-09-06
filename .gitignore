@@ -81,3 +81,5 @@ debug/
 /.vs
 /.idea/codeStyles
 /CMakeSettings.json
+
+*.dot
