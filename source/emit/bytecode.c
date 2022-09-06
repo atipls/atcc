@@ -13,21 +13,25 @@ BCValue bc_value_make(BCFunction function, BCType type) {
     return value;
 }
 
-BCValue bc_value_make_consti(BCFunction function, BCType type, u64 value) {
-    BCValue constant = bc_value_make(function, type);
+BCValue bc_value_make_consti(BCType type, u64 value) {
+    BCValue constant = make(struct SBCValue);
+
     assert(type != bc_type_void);
     assert(!type->is_floating);
 
+    constant->type = type;
     constant->flags = BC_VALUE_IS_CONSTANT;
     constant->storage = value;
     return constant;
 }
 
-BCValue bc_value_make_constf(BCFunction function, BCType type, f64 value) {
-    BCValue constant = bc_value_make(function, type);
+BCValue bc_value_make_constf(BCType type, f64 value) {
+    BCValue constant = make(struct SBCValue);
+
     assert(type != bc_type_void);
     assert(type->is_floating);
 
+    constant->type = type;
     constant->flags = BC_VALUE_IS_CONSTANT;
     constant->floating = value;
     return constant;
@@ -70,12 +74,21 @@ BCType bc_type_pointer(BCType type) {
     return pointer;
 }
 
-BCType bc_type_array(BCType type, BCValue size) {
+BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynamic) {
     BCType array = make(struct SBCType);
     array->kind = BC_TYPE_ARRAY;
-    array->size = array->alignment = POINTER_SIZE; // TODO: This should be a fat pointer, ptr+size
+
+    if (!is_dynamic && size && size->flags & BC_VALUE_IS_CONSTANT)
+        array->size = array->alignment = type->size * size->storage;
+
+    if (is_dynamic || !size)
+        array->size = array->alignment = POINTER_SIZE + bc_type_u32->size;
+
     array->element = type;
     array->count = size;
+    array->is_dynamic = is_dynamic;
+
+    vector_push(context->arrays, array);
     return array;
 }
 
@@ -234,7 +247,7 @@ BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 
 
     insn->opcode = BC_OP_GET_FIELD;
     insn->regA = source;
-    insn->regB = bc_value_make_consti(function, bc_type_u64, field);
+    insn->regB = bc_value_make_consti(bc_type_u64, field);
     insn->regD = bc_value_make(function, bc_type_pointer(type));
 
     return insn->regD;

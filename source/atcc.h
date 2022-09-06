@@ -182,6 +182,7 @@ struct ASTNode {
         struct {
             ASTNode *array_base;
             ASTNode *array_size;
+            bool array_is_dynamic;
         };
 
         struct {
@@ -378,6 +379,7 @@ struct Type {
         struct {
             Type *array_base;
             u32 array_size;
+            bool array_is_dynamic;
         };
 
         struct {

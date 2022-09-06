@@ -1,0 +1,7 @@
+output  = generated
+backend = c
+
+files = [
+    "source/main.aa",
+    "source/util.aa",
+]

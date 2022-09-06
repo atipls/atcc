@@ -1,0 +1,4 @@
+
+fun Main(args: string[*]): i32 {
+    return 0;
+}

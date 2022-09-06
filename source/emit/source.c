@@ -54,7 +54,7 @@ static void bc_generate_type(BCType type, FILE *f) {
             bc_generate_type(type->base, f);
             fprintf(f, "*");
             break;
-        case BC_TYPE_ARRAY: assert(!"unimplemented"); break;
+        case BC_TYPE_ARRAY: fprintf(f, "Array_%u", type->emit_index); break;
         case BC_TYPE_FUNCTION:
             fprintf(f, "(");
             for (size_t i = 0; i < type->num_params; i++) {
@@ -122,9 +122,14 @@ static void bc_generate_binary_arith(BCCode code, cstring fmt, FILE *f) {
     fprintf(f, " ");
     bc_generate_value(code->regD, f);
     fprintf(f, " = ");
-    bc_generate_value(code->regA, f);
-    fprintf(f, "%s", fmt);
-    bc_generate_value(code->regB, f);
+    if (code->regB) {
+        bc_generate_value(code->regA, f);
+        fprintf(f, "%s", fmt);
+        bc_generate_value(code->regB, f);
+    } else {
+        fprintf(f, "%s", fmt);
+        bc_generate_value(code->regA, f);
+    }
     fprintf(f, ";");
 }
 
@@ -162,7 +167,7 @@ static void bc_generate_code(BCCode code, FILE *f) {
         case BC_OP_SUB: bc_generate_binary_arith(code, " - ", f); break;
         case BC_OP_MUL: bc_generate_binary_arith(code, " * ", f); break;
         case BC_OP_DIV: bc_generate_binary_arith(code, " / ", f); break;
-        case BC_OP_MOD: bc_generate_binary_arith(code, " %% ", f); break;
+        case BC_OP_MOD: bc_generate_binary_arith(code, " % ", f); break;
         case BC_OP_NEG:
             bc_generate_type(code->regD->type, f);
             fprintf(f, " ");
@@ -297,7 +302,7 @@ static void bc_generate_function(BCFunction function, FILE *f) {
 static void bc_generate_aggregate(BCType aggregate, FILE *f) {
     fprintf(f, "struct %.*s {\n", strp(aggregate->name));
     for (u32 i = 0; i < aggregate->num_members; i++) {
-        fprintf(f, "    /* 0x(%04X) */", aggregate->members[i].offset);
+        fprintf(f, "    /* 0x%04X */", aggregate->members[i].offset);
         bc_generate_type(aggregate->members[i].type, f);
         fprintf(f, " %.*s;\n", strp(aggregate->members[i].name));
     }
@@ -315,6 +320,26 @@ bool bc_generate_source(BCContext context, FILE *f) {
 
     fprintf(f, "\n\n");
 
+    vector_foreach(BCType, array_ptr, context->arrays) {
+        BCType array = *array_ptr;
+        fprintf(f, "typedef struct Array_%u {\n", array->emit_index);
+        fprintf(f, "    u32 length;\n");
+        fprintf(f, "    ");
+        if (array->is_dynamic || !array->count) {
+            bc_generate_type(array->element, f);
+            fprintf(f, " *data;\n");
+        } else {
+            bc_generate_type(array->element, f);
+            fprintf(f, " data[");
+            bc_generate_value(array->count, f);
+            fprintf(f, "];\n");
+        }
+
+        fprintf(f, "} Array_%u;\n\n", array->emit_index);
+    }
+
+
+
     vector_foreach(BCType, aggregate_ptr, context->aggregates)
         bc_generate_aggregate(*aggregate_ptr, f);
 
@@ -325,11 +350,16 @@ bool bc_generate_source(BCContext context, FILE *f) {
         fprintf(f, ";\n");
     }
 
-    fprintf(f, "static char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
+    fprintf(f, "\nstatic char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
 
     // TODO: Generate forward decls.
     vector_foreach(BCFunction, function_ptr, context->functions)
             bc_generate_function(*function_ptr, f);
+
+    fprintf(f, "\nint main(int argc, char **argv) {\n"
+               "    __atcc_init_globals();\n"
+               "    return Main((Array_%u){0,0});\n"
+               "}\n", 0);
 
     return false;
 }

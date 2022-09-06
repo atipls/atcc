@@ -30,8 +30,8 @@ struct SBCValue {
 
 BCValue bc_value_make(BCFunction function, BCType type);
 
-BCValue bc_value_make_consti(BCFunction function, BCType type, u64 value);
-BCValue bc_value_make_constf(BCFunction function, BCType type, f64 value);
+BCValue bc_value_make_consti(BCType type, u64 value);
+BCValue bc_value_make_constf(BCType type, f64 value);
 
 BCValue bc_value_get_parameter(BCFunction function, u32 index);
 
@@ -62,6 +62,8 @@ struct SBCType {
         struct {
             BCType element;
             BCValue count;
+            bool is_dynamic;
+            u32 emit_index;
         };
 
         struct {
@@ -86,7 +88,7 @@ extern BCType bc_type_i64, bc_type_u64;
 extern BCType bc_type_f32, bc_type_f64;
 
 BCType bc_type_pointer(BCType type);
-BCType bc_type_array(BCType type, BCValue size);
+BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynamic);
 BCType bc_type_function(BCType result, BCType *params, u32 num_params);
 BCType bc_type_aggregate(BCContext context, string name);
 void bc_type_aggregate_set_body(BCType aggregate, BCAggregate *members, u32 num_members);
@@ -190,6 +192,7 @@ struct SBCFunction {
 };
 
 struct SBCContext {
+    BCType *arrays;
     BCType *aggregates;
     BCFunction *functions;
     u32 global_size;

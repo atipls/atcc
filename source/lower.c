@@ -34,10 +34,14 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         }
         case TYPE_STRING: {
             if (!bc_type_string) {
-                BCAggregate members[2] = {
-                    { bc_type_u64, str("length"), 0 },
-                    { bc_type_pointer(bc_type_u8), str("data"), 8 },
-                };
+                BCAggregate *members = calloc(2, sizeof(BCAggregate));
+
+                members[0].name = str("length");
+                members[0].type = bc_type_u32;
+
+                members[1].name = str("data");
+                members[1].type = bc_type_pointer(bc_type_u8);
+                members[1].offset = 4;
 
                 bc_type_string = bc_type_aggregate(context->bc, str("string"));
                 bc_type_aggregate_set_body(bc_type_string, members, 2);
@@ -46,8 +50,14 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
             return bc_type_string;
         }
         case TYPE_ARRAY: {
-            assert(!"not implemented");
-            return bc_type_void;
+            if (type->array_size) {
+                BCType base_type = build_convert_type(context, type->array_base);
+                BCValue size = bc_value_make_consti(bc_type_u32, type->array_size);
+                return bc_type_array(context->bc, base_type, size, false);
+            } else {
+                BCType base_type = build_convert_type(context, type->array_base);
+                return bc_type_array(context->bc, base_type, null, type->array_is_dynamic);
+            }
         }
         case TYPE_AGGREGATE: {
             assert(type->is_complete);
@@ -100,17 +110,17 @@ static BCValue build_expression_unary(BuildContext *context, ASTNode *expression
 
     BCValue target = build_expression(context, expression->unary_target);
     switch (expression->unary_operator) {
-        //case TOKEN_PLUS: return null;
-        case TOKEN_MINUS: return bc_insn_neg(context->function, target, null);
-        //case TOKEN_EXCLAMATION: return null;
-        //case TOKEN_TILDE: return null;
+        case TOKEN_PLUS: return target;
+        case TOKEN_MINUS: return bc_insn_sub(context->function, target, null);
+        case TOKEN_EXCLAMATION: return bc_insn_not(context->function, target, null);
+        case TOKEN_TILDE: return bc_insn_neg(context->function, target, null);
         default: assert(!"unreachable"); return null;
     }
 }
 
 static BCValue build_expression_logical_and(BuildContext *context, ASTNode *expression) {
-    BCValue c0 = bc_value_make_consti(context->function, bc_type_u32, 0);
-    BCValue c1 = bc_value_make_consti(context->function, bc_type_u32, 1);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
+    BCValue c1 = bc_value_make_consti(bc_type_u32, 1);
 
     BCBlock eval_right = bc_block_make(context->function);
     BCBlock set0 = bc_block_make(context->function);
@@ -139,8 +149,8 @@ static BCValue build_expression_logical_and(BuildContext *context, ASTNode *expr
 }
 
 static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expression) {
-    BCValue c0 = bc_value_make_consti(context->function, bc_type_u32, 0);
-    BCValue c1 = bc_value_make_consti(context->function, bc_type_u32, 1);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
+    BCValue c1 = bc_value_make_consti(bc_type_u32, 1);
 
     BCBlock eval_right = bc_block_make(context->function);
     BCBlock set0 = bc_block_make(context->function);
@@ -204,7 +214,7 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
 }
 
 static BCValue build_expression_ternary(BuildContext *context, ASTNode *expression) {
-    BCValue c0 = bc_value_make_consti(context->function, bc_type_u32, 0);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
 
     BCBlock cond_t = bc_block_make(context->function);
     BCBlock cond_f = bc_block_make(context->function);
@@ -282,7 +292,9 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
         case AST_EXPRESSION_UNARY: return build_expression_unary(context, expression);
         case AST_EXPRESSION_BINARY: return build_expression_binary(context, expression);
         case AST_EXPRESSION_TERNARY: return build_expression_ternary(context, expression);
-        case AST_EXPRESSION_LITERAL_NUMBER: return type->is_floating ? bc_value_make_constf(context->function, type, expression->literal_as_f64) : bc_value_make_consti(context->function, type, expression->literal_as_u64);
+        case AST_EXPRESSION_LITERAL_NUMBER: return type->is_floating
+                                                           ? bc_value_make_constf(type, expression->literal_as_f64)
+                                                           : bc_value_make_consti(type, expression->literal_as_u64);
         // case AST_EXPRESSION_LITERAL_CHAR: return null;
         // case AST_EXPRESSION_LITERAL_STRING: return null;
         case AST_EXPRESSION_IDENTIFIER: {
@@ -366,7 +378,7 @@ static void build_statement_if(BuildContext *context, ASTNode *statement) {
     if (statement->if_expression)
         build_statement(context, statement->if_expression);
 
-    BCValue c0 = bc_value_make_consti(context->function, bc_type_u32, 0);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
 
     BCBlock cond_t = bc_block_make(context->function);
     BCBlock cond_f = bc_block_make(context->function);

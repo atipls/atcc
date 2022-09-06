@@ -635,8 +635,13 @@ static ASTNode *parse_typedecl(Parser *parser) {
     while (parser_check(parser, TOKEN_OPEN_BRACKET) || parser_check(parser, TOKEN_STAR)) {
         if (parser_consume(parser, TOKEN_OPEN_BRACKET)) {
             ASTNode *array_size = null;
-            if (!parser_check(parser, TOKEN_CLOSE_BRACKET))
+            bool array_is_dynamic = false;
+
+            if (parser_consume(parser, TOKEN_STAR))
+                array_is_dynamic = true;
+            else if (!parser_check(parser, TOKEN_CLOSE_BRACKET))
                 array_size = parse_expression(parser);
+
             if (!parser_consume(parser, TOKEN_CLOSE_BRACKET))
                 return make_error(parser, str("Expected ']' after array size in a type."));
 
@@ -644,6 +649,7 @@ static ASTNode *parse_typedecl(Parser *parser) {
             typedecl = make_ast(AST_DECLARATION_TYPE_ARRAY);
             typedecl->array_base = base_type;
             typedecl->array_size = array_size;
+            typedecl->array_is_dynamic = array_is_dynamic;
         } else {
             if (!parser_consume(parser, TOKEN_STAR))
                 return make_error(parser, str("Expected '*' after '[' in a type declaration."));

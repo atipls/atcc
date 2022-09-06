@@ -96,7 +96,9 @@ SemanticContext *sema_initialize() {
     string_table_set(&context->global->entries, str("f32"), make_builtin(context->type_f32));
     string_table_set(&context->global->entries, str("f64"), make_builtin(context->type_f64));
 
-    // TODO: string type
+    context->type_string = make_type(TYPE_STRING, 12, 12);
+
+    string_table_set(&context->global->entries, str("string"), make_builtin(context->type_string));
 
     return context;
 }
@@ -171,16 +173,26 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
         case AST_DECLARATION_TYPE_ARRAY: {
             Type *base_type = sema_resolve_type(context, node->array_base);
 
-            sema_analyze_expression(context, node->array_size);
-            assert(node->array_size->kind == AST_EXPRESSION_LITERAL_NUMBER);
+            if (node->array_size) {
+                sema_analyze_expression(context, node->array_size);
+                assert(node->array_size->kind == AST_EXPRESSION_LITERAL_NUMBER);
+                u32 size = (u32) node->array_size->literal_as_u64 * base_type->size;
+                Type *array = make_type(TYPE_ARRAY, size, size);// TODO: Alignment.
+                array->array_base = base_type;
+                array->array_size = node->array_size->literal_as_u64;
+                return array;
+            } else {
+                Type *array = make_type(TYPE_ARRAY, 12, 12);
+                array->array_base = base_type;
+                return array;
+            }
 
-            u32 size = (u32) node->array_size->literal_as_u64 * base_type->size;
+            if (node->array_is_dynamic) {
+                unimplemented;
+                return null;
+            }
 
-            Type *array = make_type(TYPE_ARRAY, size, size);// TODO: Alignment.
-            array->array_base = base_type;
-            array->array_size = node->array_size->literal_as_u64;
 
-            return array;
         }
         default: unimplemented; return null;
     }

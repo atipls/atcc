@@ -12,412 +12,52 @@ typedef float f32;
 typedef double f64;
 
 
-typedef struct Foo Foo;
+typedef struct string string;
 
 
-struct Foo {
-    /* 0x(0000) */Foo* foo;
-    /* 0x(0008) */i32 value;
+typedef struct Array_0 {
+    u32 length;
+    string *data;
+} Array_0;
+
+struct string {
+    /* 0x0000 */u32 length;
+    /* 0x0004 */u8* data;
 };
 
 
 
 void __atcc_init_globals(void);
-void Test0(void);
-void Test1(i32 param0);
-i32 Test2(i32 param0);
-i32 Test3(i32 param0);
-i32 Test4(i32 param0);
-i32 Test051(void);
-i32 Test052(void);
-i32 Test053(void);
-i32 Test054(void);
-i32 Test055(void);
-i32 Test056(void);
-i32 Test057(void);
-i32 Test5(i32 param0);
-i32 Test51(i32 param0);
-i32 Test52(i32 param0);
-i32 Test53(i32 param0);
-i32 Print(i8* param0);
-i32 Test15(void);
-i32 Test55(i32 param0);
-i32 Test56(i32 param0);
-i32 Test66(void);
-i32 Test67(i32 param0);
-i32 Test68(void);
-static char GLOBAL_VARIABLES[8];
+i32 Main(Array_0 param0);
+
+static char GLOBAL_VARIABLES[0];
 
 void __atcc_init_globals(void) {
 __block0: ;
 }
 
-void Test0(void) {
-__block0: ;
-}
-
-void Test1(i32 param0) {
-__block0: ;
-}
-
-i32 Test2(i32 param0) {
-__block0: ;
-    return ((i32)(0));
-}
-
-i32 Test3(i32 param0) {
-__block0: ;
-    i32 V1 = ((i32)(5)) + param0;
-    return V1;
-}
-
-i32 Test4(i32 param0) {
+i32 Main(Array_0 param0) {
     char STACK[4];
 __block0: ;
-    *((i32*)(&STACK[0])) = param0;
+    *((i32*)(&STACK[0])) = ((i32)(1));
     i32 V0 = *((i32*)(&STACK[0]));
-    return V0;
-}
-
-i32 Test051(void) {
-u32 V6;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block3; else goto __block1;
-__block1: ;
-    i32 V5 = ((i32)(2)) != ((u32)(0));
-    if (V5) goto __block3; else goto __block2;
-__block2: ;
-    V6 = ((u32)(0)); goto __block4;
-__block3: ;
-    V6 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V6;
-}
-
-i32 Test052(void) {
-u32 V6;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block1; else goto __block2;
-__block1: ;
-    i32 V5 = ((i32)(2)) != ((u32)(0));
-    if (V5) goto __block3; else goto __block2;
-__block2: ;
-    V6 = ((u32)(0)); goto __block4;
-__block3: ;
-    V6 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V6;
-}
-
-i32 Test053(void) {
-i32 V4;
-__block0: ;
-    i32 V1 = ((i32)(1)) != ((u32)(0));
-    if (V1) goto __block1; else goto __block2;
-__block1: ;
-    V4 = ((i32)(1)); goto __block3;
-__block2: ;
-    V4 = ((i32)(1)); goto __block3;
-__block3: ;
-    return V4;
-}
-
-i32 Test054(void) {
-u32 V10;
-i32 V6;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block5; else goto __block6;
-__block1: ;
-    i32 V9 = ((i32)(2)) != ((u32)(0));
-    if (V9) goto __block3; else goto __block2;
-__block2: ;
-    V10 = ((u32)(0)); goto __block4;
-__block3: ;
-    V10 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V10;
-__block5: ;
-    V6 = ((i32)(1)); goto __block7;
-__block6: ;
-    V6 = ((i32)(1)); goto __block7;
-__block7: ;
-    i32 V7 = V6 != ((u32)(0));
-    if (V7) goto __block3; else goto __block1;
-}
-
-i32 Test055(void) {
-u32 V10;
-i32 V6;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block5; else goto __block6;
-__block1: ;
-    i32 V9 = ((i32)(2)) != ((u32)(0));
-    if (V9) goto __block3; else goto __block2;
-__block2: ;
-    V10 = ((u32)(0)); goto __block4;
-__block3: ;
-    V10 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V10;
-__block5: ;
-    V6 = ((i32)(1)); goto __block7;
-__block6: ;
-    V6 = ((i32)(1)); goto __block7;
-__block7: ;
-    i32 V7 = V6 != ((u32)(0));
-    if (V7) goto __block1; else goto __block2;
-}
-
-i32 Test056(void) {
-u32 V14;
-i32 V6;
-i32 V12;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block5; else goto __block6;
-__block1: ;
-    i32 V9 = ((i32)(1)) != ((u32)(0));
-    if (V9) goto __block8; else goto __block9;
-__block2: ;
-    V14 = ((u32)(0)); goto __block4;
-__block3: ;
-    V14 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V14;
-__block5: ;
-    V6 = ((i32)(1)); goto __block7;
-__block6: ;
-    V6 = ((i32)(1)); goto __block7;
-__block7: ;
-    i32 V7 = V6 != ((u32)(0));
-    if (V7) goto __block3; else goto __block1;
-__block8: ;
-    V12 = ((i32)(1)); goto __block10;
-__block9: ;
-    V12 = ((i32)(1)); goto __block10;
-__block10: ;
-    i32 V13 = V12 != ((u32)(0));
-    if (V13) goto __block3; else goto __block2;
-}
-
-i32 Test057(void) {
-u32 V14;
-i32 V6;
-i32 V12;
-__block0: ;
-    i32 V3 = ((i32)(1)) != ((u32)(0));
-    if (V3) goto __block5; else goto __block6;
-__block1: ;
-    i32 V9 = ((i32)(1)) != ((u32)(0));
-    if (V9) goto __block8; else goto __block9;
-__block2: ;
-    V14 = ((u32)(0)); goto __block4;
-__block3: ;
-    V14 = ((u32)(1)); goto __block4;
-__block4: ;
-    return V14;
-__block5: ;
-    V6 = ((i32)(1)); goto __block7;
-__block6: ;
-    V6 = ((i32)(1)); goto __block7;
-__block7: ;
-    i32 V7 = V6 != ((u32)(0));
-    if (V7) goto __block1; else goto __block2;
-__block8: ;
-    V12 = ((i32)(1)); goto __block10;
-__block9: ;
-    V12 = ((i32)(1)); goto __block10;
-__block10: ;
-    i32 V13 = V12 != ((u32)(0));
-    if (V13) goto __block3; else goto __block2;
-}
-
-i32 Test5(i32 param0) {
-    char STACK[4];
-__block0: ;
-    i32 V1 = param0 - ((i32)(1));
+    i32 V1 =  - V0;
     *((i32*)(&STACK[0])) = V1;
+    i32 V2 = *((i32*)(&STACK[0]));
+    *((i32*)(&STACK[0])) = V2;
     i32 V3 = *((i32*)(&STACK[0]));
-    i32 V5 = -((i32)(1));
-    i32 V6 = V3 == V5;
-    i32 V7 = V6 != ((u32)(0));
-    if (V7) goto __block1; else goto __block2;
-__block1: ;
-    return ((i32)(3));
-__block2: ;
-    i32 V10 = *((i32*)(&STACK[0]));
-    i32 V12 = V10 == ((i32)(0));
-    i32 V13 = V12 != ((u32)(0));
-    if (V13) goto __block4; else goto __block5;
-__block3: ;
-    return ((i32)(8));
-__block4: ;
-    return ((i32)(4));
-__block5: ;
-    goto __block6;
-__block6: ;
-    goto __block3;
-}
-
-i32 Test51(i32 param0) {
-u32 V7;
-__block0: ;
-    i32 V4 = param0 >= ((i32)(20));
-    i32 V5 = V4 != ((u32)(0));
-    if (V5) goto __block4; else goto __block5;
-__block1: ;
-    i32 V12 = param0 - ((i32)(1));
-    return V12;
-__block2: ;
-    i32 V14 = param0 + ((i32)(1));
-    return V14;
-__block3: ;
-__block4: ;
-    i32 V6 = param0 != ((u32)(0));
-    if (V6) goto __block6; else goto __block5;
-__block5: ;
-    V7 = ((u32)(0)); goto __block7;
-__block6: ;
-    V7 = ((u32)(1)); goto __block7;
-__block7: ;
-    u32 V9 = V7 <= ((i32)(30));
-    u32 V10 = V9 != ((u32)(0));
-    if (V10) goto __block1; else goto __block2;
-}
-
-i32 Test52(i32 param0) {
-    char STACK[4];
-__block0: ;
-    *((i32*)(&STACK[0])) = param0;
-    *((i32*)(&STACK[0])) = ((i32)(10));
-    i32 V1 = *((i32*)(&STACK[0]));
-    return V1;
-}
-
-i32 Test53(i32 param0) {
-    char STACK[4];
-__block0: ;
-    *((i32*)(&STACK[0])) = param0;
-    i32 V0 = *((i32*)(&STACK[0]));
-    u64 V1 = (u64) V0;
-    *((u64*)(&GLOBAL_VARIABLES[0])) = V1;
-    u64 V2 = *((u64*)(&GLOBAL_VARIABLES[0]));
-    return V2;
-}
-
-i32 Print(i8* param0) {
-__block0: ;
-}
-
-i32 Test15(void) {
-    char STACK[8];
-u32 V7;
-u32 V25;
-__block0: ;
-    *((i32*)(&STACK[0])) = ((i32)(333));
-    i32 V4 = ((i32)(0)) != ((u32)(0));
-    if (V4) goto __block6; else goto __block4;
-__block1: ;
-    *((i32*)(&STACK[0])) = ((i32)(12));
-    *((u64*)(&GLOBAL_VARIABLES[0])) = ((i32)(553));
-    u64 V13 = *((u64*)(&GLOBAL_VARIABLES[0]));
-    u32 V14 = (u32) V13;
-    *((u32*)(&STACK[4])) = V14;
-    i32 V16 = ((i32)(0)) != ((u32)(0));
-    if (V16) goto __block8; else goto __block9;
-__block2: ;
-    i32 V22 = ((i32)(1)) != ((u32)(0));
-    if (V22) goto __block16; else goto __block14;
-__block3: ;
-    *((i32*)(&STACK[0])) = ((i32)(33));
-    i32 V29 = *((i32*)(&STACK[0]));
-    return V29;
-__block4: ;
+    i32 V4 = -V3;
+    *((i32*)(&STACK[0])) = V4;
     i32 V5 = *((i32*)(&STACK[0]));
-    i32 V6 = V5 != ((u32)(0));
-    if (V6) goto __block6; else goto __block5;
-__block5: ;
-    V7 = ((u32)(0)); goto __block7;
-__block6: ;
-    V7 = ((u32)(1)); goto __block7;
-__block7: ;
-    u32 V9 = V7 > ((i32)(0));
-    u32 V10 = V9 != ((u32)(0));
-    if (V10) goto __block1; else goto __block2;
-__block8: ;
-    return ((i32)(92));
-__block9: ;
-    goto __block10;
-__block10: ;
-    goto __block3;
-__block11: ;
-    *((i32*)(&STACK[0])) = ((i32)(34));
-    goto __block13;
-__block12: ;
-    goto __block13;
-__block13: ;
-    goto __block3;
-__block14: ;
-    i32 V24 = ((i32)(2)) != ((u32)(0));
-    if (V24) goto __block16; else goto __block15;
-__block15: ;
-    V25 = ((u32)(0)); goto __block17;
-__block16: ;
-    V25 = ((u32)(1)); goto __block17;
-__block17: ;
-    u32 V26 = V25 != ((u32)(0));
-    if (V26) goto __block11; else goto __block12;
+    i32 V6 = !V5;
+    *((i32*)(&STACK[0])) = V6;
+    *((i32*)(&STACK[0])) = ((i32)(0));
+    i32 V7 = *((i32*)(&STACK[0]));
+    return V7;
 }
 
-i32 Test55(i32 param0) {
-    char STACK[4];
-__block0: ;
-    *((i32*)(&STACK[0])) = ((i32)(90));
-    ; // nop
-    i32 V1 = *((i32*)(&STACK[0]));
-    return V1;
-}
 
-i32 Test56(i32 param0) {
-    char STACK[4];
-__block0: ;
-    *((i32*)(&STACK[0])) = ((i32)(90));
-    ; // nop
-    i32 V1 = *((i32*)(&STACK[0]));
-    return V1;
+int main(int argc, char **argv) {
+    __atcc_init_globals();
+    return Main();
 }
-
-i32 Test66(void) {
-__block0: ;
-    i32 V1 = Test67(((i32)(0)));
-    return V1;
-}
-
-i32 Test67(i32 param0) {
-__block0: ;
-    i32 V1 = param0 + ((i32)(6));
-    i32 V2 = Test3(V1);
-    i32 V4 = V2 * ((i32)(4));
-    return V4;
-}
-
-i32 Test68(void) {
-    char STACK[24];
-__block0: ;
-    Foo V0 = *((Foo*)(&STACK[12]));
-    *((Foo*)(&STACK[0])) = V0;
-    Foo** V2 = &(((Foo*)(&STACK[0]))->foo);
-    *V2 = ((Foo*)(&STACK[0]));
-    Foo** V4 = &(((Foo*)(&STACK[0]))->foo);
-    Foo* V5 = *V4;
-    i32* V7 = &(V5->value);
-    *V7 = ((i32)(19132));
-    i32* V10 = &(((Foo*)(&STACK[0]))->value);
-    i32 V11 = *V10;
-    return V11;
-}
-
