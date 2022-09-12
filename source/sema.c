@@ -747,6 +747,8 @@ static bool sema_analyze_statement_assign(SemanticContext *context, ASTNode *sta
     if (statement->assign_operator == TOKEN_EQUAL)
         statement->base_type = right;
 
+
+
     printf("TODO: check assignment\n");
     return true;
 }
@@ -769,7 +771,7 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
         case AST_STATEMENT_INIT: sema_analyze_statement_init(context, statement); return false;
         case AST_STATEMENT_EXPRESSION: sema_analyze_expression(context, statement->parent); return false;
         case AST_STATEMENT_ASSIGN: sema_analyze_statement_assign(context, statement); return false;
-        default: unimplemented; return false;
+        default: printf("Unimplemented %d\n", statement->kind); unimplemented; return false;
     }
 }
 

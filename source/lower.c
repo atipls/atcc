@@ -98,6 +98,25 @@ static BCValue build_resolve_name(BuildContext *context, string name) {
     return string_table_get(&context->functions, name);
 }
 
+static TokenKind build_get_assignment_operator(TokenKind kind) {
+    switch (kind) {
+        case TOKEN_PLUS_EQUAL: return TOKEN_PLUS;
+        case TOKEN_MINUS_EQUAL: return TOKEN_MINUS;
+        case TOKEN_STAR_EQUAL: return TOKEN_STAR;
+        case TOKEN_SLASH_EQUAL: return TOKEN_SLASH;
+        case TOKEN_PERCENT_EQUAL: return TOKEN_PERCENT;
+        case TOKEN_AMPERSAND_EQUAL: return TOKEN_AMPERSAND;
+        case TOKEN_PIPE_EQUAL: return TOKEN_PIPE;
+        case TOKEN_CARET_EQUAL: return TOKEN_CARET;
+        case TOKEN_TILDE_EQUAL: return TOKEN_TILDE;
+        case TOKEN_AMPERSAND_AMPERSAND_EQUAL: return TOKEN_AMPERSAND_AMPERSAND;
+        case TOKEN_PIPE_PIPE_EQUAL: return TOKEN_PIPE_PIPE;
+        case TOKEN_LEFT_SHIFT_EQUAL: return TOKEN_LEFT_SHIFT;
+        case TOKEN_RIGHT_SHIFT_EQUAL: return TOKEN_RIGHT_SHIFT;
+        default: assert(!"Invalid assignment operator."); return TOKEN_PLUS;
+    }
+}
+
 static BCValue build_expression(BuildContext *context, ASTNode *expression);
 static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expression);
 static void build_statement(BuildContext *context, ASTNode *statement);
@@ -178,19 +197,8 @@ static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expre
     return last->input;
 }
 
-static BCValue build_expression_binary(BuildContext *context, ASTNode *expression) {
-    if (expression->binary_operator == TOKEN_AMPERSAND_AMPERSAND) return build_expression_logical_and(context, expression);
-    if (expression->binary_operator == TOKEN_PIPE_PIPE) return build_expression_logical_or(context, expression);
-
-    BCValue binary_l = build_expression(context, expression->binary_left);
-    BCValue binary_r = build_expression(context, expression->binary_right);
-
-    switch (expression->binary_operator) {
-        // case TOKEN_SLASH: return null;
-        // case TOKEN_PERCENT: return null;
-        // case TOKEN_AMPERSAND: return null;
-        // case TOKEN_LEFT_SHIFT: return null;
-        // case TOKEN_RIGHT_SHIFT: return null;
+static BCValue build_expression_binary_values(BuildContext *context, TokenKind kind, BCValue binary_l, BCValue binary_r) {
+    switch (kind) {
         case TOKEN_PLUS: {
             // TODO: Pointer arithmetic
             return bc_insn_add(context->function, binary_l, binary_r);
@@ -200,6 +208,9 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
             return bc_insn_sub(context->function, binary_l, binary_r);
         }
         case TOKEN_STAR: return bc_insn_mul(context->function, binary_l, binary_r);
+        case TOKEN_SLASH: return bc_insn_div(context->function, binary_l, binary_r);
+        case TOKEN_PERCENT: return bc_insn_mod(context->function, binary_l, binary_r);
+        case TOKEN_AMPERSAND: return bc_insn_and(context->function, binary_l, binary_r);
         case TOKEN_CARET: return bc_insn_xor(context->function, binary_l, binary_r);
         case TOKEN_PIPE: return bc_insn_or(context->function, binary_l, binary_r);
         case TOKEN_EQUAL_EQUAL: return bc_insn_eq(context->function, binary_l, binary_r);
@@ -208,9 +219,21 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
         case TOKEN_GREATER_EQUAL: return bc_insn_ge(context->function, binary_l, binary_r);
         case TOKEN_LESS: return bc_insn_lt(context->function, binary_l, binary_r);
         case TOKEN_LESS_EQUAL: return bc_insn_le(context->function, binary_l, binary_r);
+        case TOKEN_LEFT_SHIFT: return bc_insn_shl(context->function, binary_l, binary_r);
+        case TOKEN_RIGHT_SHIFT: return bc_insn_shr(context->function, binary_l, binary_r);
 
         default: assert(!"unreachable"); return null;
     }
+}
+
+static BCValue build_expression_binary(BuildContext *context, ASTNode *expression) {
+    if (expression->binary_operator == TOKEN_AMPERSAND_AMPERSAND) return build_expression_logical_and(context, expression);
+    if (expression->binary_operator == TOKEN_PIPE_PIPE) return build_expression_logical_or(context, expression);
+
+    BCValue binary_l = build_expression(context, expression->binary_left);
+    BCValue binary_r = build_expression(context, expression->binary_right);
+
+    return build_expression_binary_values(context, expression->binary_operator, binary_l, binary_r);
 }
 
 static BCValue build_expression_ternary(BuildContext *context, ASTNode *expression) {
@@ -435,6 +458,13 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
                 break;
             }
 
+            TokenKind operator = build_get_assignment_operator(statement->assign_operator);
+
+            BCValue lhs = bc_insn_load(context->function, target);
+            BCValue rhs = build_expression(context, statement->assign_value);
+
+            BCValue result = build_expression_binary_values(context, operator, lhs, rhs);
+            bc_insn_store(context->function, target, result);
             break;
         }
         default: assert(!"unreachable"); break;
