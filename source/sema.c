@@ -98,6 +98,15 @@ SemanticContext *sema_initialize() {
 
     context->type_string = make_type(TYPE_STRING, 12, 12);
 
+    TypeField *length = vector_add(context->type_string->fields, 1);
+    length->name = str("length");
+    length->type = context->type_u32;
+
+    TypeField *data = vector_add(context->type_string->fields, 1);
+    data->name = str("data");
+    data->type = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
+    data->type->base_type = context->type_u8;
+
     string_table_set(&context->global->entries, str("string"), make_builtin(context->type_string));
 
     return context;
@@ -292,7 +301,12 @@ static u32 sema_resolve_aggregate_item(SemanticContext *context, ASTNode *node, 
 }
 
 static bool sema_complete_aggregate(SemanticContext *context, Type* aggregate) {
-    if (!aggregate || aggregate->kind != TYPE_AGGREGATE)
+    assert(aggregate);
+
+    // Strings and arrays have their special treatment, they don't need to be resolved as structs.
+    if (aggregate->kind == TYPE_ARRAY || aggregate->kind == TYPE_STRING)
+        return true;
+    if (aggregate->kind != TYPE_AGGREGATE)
         return false;
     if (aggregate->is_complete)
         return true;
@@ -343,14 +357,26 @@ static bool sema_node_convert_explicit(ASTNode *node, Type *target) {
 
 static void sema_unify_binary_operands(SemanticContext *context, ASTNode *left, ASTNode *right) {
     if (node_type(left) == node_type(right)) return;
-    if (node_type(left) == context->type_f64)
-        right->conv_type = context->type_f64;
-    else if (node_type(right) == context->type_f64)
-        left->conv_type = context->type_f64;
-    else if (node_type(left) == context->type_f32)
-        right->conv_type = context->type_f32;
-    else if (node_type(right) == context->type_f32)
-        left->conv_type = context->type_f32;
+    if      (node_type(left ) == context->type_f64)         right->conv_type = context->type_f64;
+    else if (node_type(right) == context->type_f64)         left ->conv_type = context->type_f64;
+    else if (node_type(left ) == context->type_f32)         right->conv_type = context->type_f32;
+    else if (node_type(right) == context->type_f32)         left ->conv_type = context->type_f32;
+    else if (node_type(left ) == context->type_i64)         right->conv_type = context->type_i64;
+    else if (node_type(right) == context->type_i64)         left ->conv_type = context->type_i64;
+    else if (node_type(left ) == context->type_i32)         right->conv_type = context->type_i32;
+    else if (node_type(right) == context->type_i32)         left ->conv_type = context->type_i32;
+    else if (node_type(left ) == context->type_i16)         right->conv_type = context->type_i16;
+    else if (node_type(right) == context->type_i16)         left ->conv_type = context->type_i16;
+    else if (node_type(left ) == context->type_i8)          right->conv_type = context->type_i8;
+    else if (node_type(right) == context->type_i8)          left ->conv_type = context->type_i8;
+    else if (node_type(left ) == context->type_u64)         right->conv_type = context->type_u64;
+    else if (node_type(right) == context->type_u64)         left ->conv_type = context->type_u64;
+    else if (node_type(left ) == context->type_u32)         right->conv_type = context->type_u32;
+    else if (node_type(right) == context->type_u32)         left ->conv_type = context->type_u32;
+    else if (node_type(left ) == context->type_u16)         right->conv_type = context->type_u16;
+    else if (node_type(right) == context->type_u16)         left ->conv_type = context->type_u16;
+    else if (node_type(left ) == context->type_u8)          right->conv_type = context->type_u8;
+    else if (node_type(right) == context->type_u8)          left ->conv_type = context->type_u8;
     else {
         sema_errorf(context, left, "incompatible types (unimplemented)");
         right->conv_type = node_type(left);
@@ -446,12 +472,18 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
 
             return expression->base_type;
         }
-            // case AST_EXPRESSION_LITERAL_CHAR:
-            // case AST_EXPRESSION_LITERAL_STRING:
+        case AST_EXPRESSION_LITERAL_CHAR: {
+            expression->base_type = context->type_u8;
+            return expression->base_type;
+        }
+        case AST_EXPRESSION_LITERAL_STRING: {
+            expression->base_type = context->type_string;
+            return expression->base_type;
+        }
         case AST_EXPRESSION_IDENTIFIER: {
             SemanticEntry *entry = sema_resolve_name(context, expression->value);
             if (!entry) {
-                sema_errorf(context, expression, "undefined symbol '%s'", expression->value);
+                sema_errorf(context, expression, "undefined symbol '%s.*'", strp(expression->value));
                 return null;
             }
 
@@ -488,7 +520,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
                     // TODO: Better error message?
                     sema_errorf(context, expression->call_target, "function argument %d has the wrong type", i + 1);
-                    return null;
+                    //return null;
                 }
             }
 
@@ -500,9 +532,23 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             if (field_type->kind == TYPE_POINTER)
                 field_type = field_type->base_type;
 
-            // TODO: add support for arrays and strings.
-            if (field_type->kind != TYPE_AGGREGATE)
+            if (field_type->kind != TYPE_AGGREGATE && field_type->kind != TYPE_ARRAY && field_type->kind != TYPE_STRING)
                 sema_errorf(context, expression->field_target, "cannot use a field of a non-aggregate.");
+
+            if (field_type->kind == TYPE_ARRAY) {
+                if (string_match(expression->field_name, str("length"))) {
+                    expression->base_type = context->type_u32;
+                    return expression->base_type;
+                }
+
+                if (string_match(expression->field_name, str("data"))) {
+                    expression->base_type = field_type;
+                    return expression->base_type;
+                }
+
+                sema_errorf(context, expression->field_target, "array has no field named '%.*s'", strp(expression->field_name));
+                return null;
+            }
 
             if (!sema_complete_aggregate(context, field_type))
                 sema_errorf(context, expression, "cannot use incomplete type here");
@@ -519,8 +565,8 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
         }
         case AST_EXPRESSION_INDEX: {
             Type *field_type = sema_analyze_expression(context, expression->index_target);
-            if (field_type->kind != TYPE_ARRAY) {
-                sema_errorf(context, expression->index_target, "can only index arrays");
+            if (field_type->kind != TYPE_ARRAY && field_type->kind != TYPE_POINTER && field_type->kind != TYPE_STRING) {
+                sema_errorf(context, expression->index_target, "can only index arrays, strings, and pointers");
                 return null;
             }
 

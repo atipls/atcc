@@ -307,7 +307,7 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
 }
 
 static BCValue build_expression(BuildContext *context, ASTNode *expression) {
-    assert(!expression->conv_type);
+    //assert(!expression->conv_type);
 
     BCType type = build_convert_type(context, node_type(expression));
     switch (expression->kind) {
@@ -318,8 +318,12 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
         case AST_EXPRESSION_LITERAL_NUMBER: return type->is_floating
                                                            ? bc_value_make_constf(type, expression->literal_as_f64)
                                                            : bc_value_make_consti(type, expression->literal_as_u64);
-        // case AST_EXPRESSION_LITERAL_CHAR: return null;
-        // case AST_EXPRESSION_LITERAL_STRING: return null;
+        case AST_EXPRESSION_LITERAL_CHAR: return bc_value_make_consti(type, expression->literal_as_u64);
+        case AST_EXPRESSION_LITERAL_STRING: {
+            BCValue string = bc_value_make_consti(type, 0);
+            string->string = expression->literal_value;
+            return string;
+        }
         case AST_EXPRESSION_IDENTIFIER: {
             // TODO: Constant checks, string checks, pointer checks.
             BCValue resolved = build_resolve_name(context, expression->value);
@@ -367,25 +371,55 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             if (type->kind == TYPE_POINTER) {
                 target = build_expression(context, expression->field_target);
                 type = type->base_type;
-            } else target = build_expression_lvalue(context, expression->field_target);
+            } else if (type->kind == TYPE_AGGREGATE)
+                target = build_expression_lvalue(context, expression->field_target);
+            else
+                target = build_expression(context, expression->field_target);
 
-            assert(type->kind == TYPE_AGGREGATE);
+            assert(type->kind == TYPE_AGGREGATE || type->kind == TYPE_STRING || type->kind == TYPE_ARRAY);
 
-            BCType field_type = null;
-            u64 field_index = 0;
-            vector_foreach(TypeField, field, type->fields) {
-                if (string_match(expression->field_name, field->name)) {
-                    field_type = build_convert_type(context, field->type);
-                    break;
+            if (type->kind == TYPE_AGGREGATE) {
+                BCType field_type = null;
+                u64 field_index = 0;
+                vector_foreach(TypeField, field, type->fields) {
+                    if (string_match(expression->field_name, field->name)) {
+                        field_type = build_convert_type(context, field->type);
+                        break;
+                    }
+                    field_index++;
                 }
-                field_index++;
+
+                assert(field_type);
+                return bc_insn_get_field(context->function, target, field_type, field_index);
             }
 
-            assert(field_type);
+            if (type->kind == TYPE_STRING || type->kind == TYPE_ARRAY) {
+                BCType field_type = null;
+                u64 field_index = 0;
+                if (string_match(expression->field_name, str("length"))) {
+                    field_index = 0;
+                    field_type = bc_type_u32;
+                } else if (string_match(expression->field_name, str("data"))) {
+                    field_index = 1;
+                    field_type = type->kind == TYPE_ARRAY
+                            ? bc_type_pointer(build_convert_type(context, type->array_base))
+                            : bc_type_pointer(bc_type_u8);
+                }
+                else assert(!"unreachable");
 
-            return bc_insn_get_field(context->function, target, field_type, field_index);
+                return bc_insn_get_field(context->function, target, field_type, field_index);
+            }
         }
-        // case AST_EXPRESSION_INDEX: return null;
+        case AST_EXPRESSION_INDEX: {
+            BCValue target = build_expression(context, expression->index_target);
+            BCValue index = build_expression(context, expression->index_index);
+
+            Type *type = node_type(expression->index_target);
+            assert(type->kind == TYPE_ARRAY || type->kind == TYPE_STRING);
+
+            BCType element_type = build_convert_type(context, type->base_type);
+            return bc_insn_get_index(context->function, target, element_type, index);
+        }
         case AST_EXPRESSION_COMPOUND: return build_expression_compound(context, expression);
         default: assert(!"unreachable"); return null;
     }
@@ -433,8 +467,8 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
         case AST_STATEMENT_IF: build_statement_if(context, statement); break;
         // case AST_STATEMENT_WHILE: break;
         // case AST_STATEMENT_DO_WHILE: break;
-        // case AST_STATEMENT_FOR: break;
-        case AST_STATEMENT_SWITCH: printf("TODO: Switch\n"); bc_insn_nop(context->function); break;
+        case AST_STATEMENT_FOR: break;
+        // case AST_STATEMENT_SWITCH: break;
         // case AST_STATEMENT_BREAK: break;
         // case AST_STATEMENT_CONTINUE: break;
         case AST_STATEMENT_RETURN: bc_insn_return(context->function, build_expression(context, statement->parent)); break;
@@ -449,7 +483,7 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
             string_table_set(&context->locals, statement->init_name, variable);
             break;
         }
-        // case AST_STATEMENT_EXPRESSION: break;
+        case AST_STATEMENT_EXPRESSION: build_expression(context, statement->parent); break;
         case AST_STATEMENT_ASSIGN: {
             BCValue target = build_expression_lvalue(context, statement->assign_target);
             if (statement->assign_operator == TOKEN_EQUAL) {
@@ -477,6 +511,11 @@ static void build_function(BuildContext *context, ASTNode *function) {
     BCValue function_value = string_table_get(&context->functions, function->function_name);
     context->function = (BCFunction) function_value->storage;
 
+    if (!function->function_body) {
+        context->function->is_extern = true;
+        return;
+    }
+
     for (u32 i = 0; i < context->function->signature->num_params; i++) {
         // TODO: Should function parameters be lvalues?
 
@@ -485,8 +524,7 @@ static void build_function(BuildContext *context, ASTNode *function) {
         string_table_set(&context->locals, parameter->function_parameter_name, value);
     }
 
-    if (function->function_body)
-        build_statement(context, function->function_body);
+    build_statement(context, function->function_body);
     // TODO: For void return types, we should build the instruction on unterminated blocks.
 
     bc_dump_function(context->function, stderr);

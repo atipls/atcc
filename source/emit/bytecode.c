@@ -87,6 +87,7 @@ BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynam
     array->element = type;
     array->count = size;
     array->is_dynamic = is_dynamic;
+    array->emit_index = vector_len(context->arrays);
 
     vector_push(context->arrays, array);
     return array;
@@ -248,6 +249,17 @@ BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 
     insn->opcode = BC_OP_GET_FIELD;
     insn->regA = source;
     insn->regB = bc_value_make_consti(bc_type_u64, field);
+    insn->regD = bc_value_make(function, bc_type_pointer(type));
+
+    return insn->regD;
+}
+
+BCValue bc_insn_get_index(BCFunction function, BCValue source, BCType type, BCValue index) {
+    BCCode insn = bc_insn_of(function);
+
+    insn->opcode = BC_OP_GET_INDEX;
+    insn->regA = source;
+    insn->regB = index;
     insn->regD = bc_value_make(function, bc_type_pointer(type));
 
     return insn->regD;

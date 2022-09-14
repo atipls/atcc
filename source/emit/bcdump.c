@@ -124,19 +124,19 @@ static void bc_dump_code(BCCode code, FILE *f) {
             fprintf(f, " = load ");
             bc_dump_value(code->regA, f);
             break;
-        case BC_OP_GET_ELEMENT:
+        case BC_OP_GET_FIELD:
+            bc_dump_value(code->regD, f);
+            fprintf(f, " = ");
+            bc_dump_value(code->regA, f);
+            fprintf(f, "[field %llu]", code->regB->storage);
+            break;
+        case BC_OP_GET_INDEX:
             bc_dump_value(code->regD, f);
             fprintf(f, " = ");
             bc_dump_value(code->regA, f);
             fprintf(f, "[");
             bc_dump_value(code->regB, f);
             fprintf(f, "]");
-            break;
-        case BC_OP_GET_FIELD:
-            bc_dump_value(code->regD, f);
-            fprintf(f, " = ");
-            bc_dump_value(code->regA, f);
-            fprintf(f, "[field %llu]", code->regB->storage);
             break;
         case BC_OP_STORE:
             fprintf(f, "store ");

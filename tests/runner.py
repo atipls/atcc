@@ -21,7 +21,7 @@ def run_test_stage(path, stage, command):
 
 
 def run_a_test(path):
-    if not run_test_stage(path, "ATCC", [COMPILER_PATH, path]):
+    if not run_test_stage(path, "ATCC", [COMPILER_PATH, "tests/preload.aa", path]):
         return False
 
     if not run_test_stage(path, "COMP", ["gcc", "-o", "testexec", "generated.c"]):

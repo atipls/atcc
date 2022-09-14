@@ -25,6 +25,7 @@ struct SBCValue {
     union {
         u64 storage;
         f64 floating;
+        string string;
     };
 };
 
@@ -101,8 +102,8 @@ typedef enum {
     BC_OP_LOAD,
     BC_OP_STORE,
 
-    BC_OP_GET_ELEMENT,
     BC_OP_GET_FIELD,
+    BC_OP_GET_INDEX,
 
     BC_OP_ADD,
     BC_OP_SUB,
@@ -180,6 +181,8 @@ struct SBCFunction {
     BCType signature;
     string name;
 
+    bool is_extern;
+
     BCBlock first_block;
     BCBlock last_block;
 
@@ -215,7 +218,7 @@ BCValue bc_insn_nop(BCFunction function);
 BCValue bc_insn_load(BCFunction function, BCValue source);
 BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue source);
 BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 index);
-
+BCValue bc_insn_get_index(BCFunction function, BCValue source, BCType type, BCValue index);
 
 BCValue bc_insn_add(BCFunction function, BCValue arg1, BCValue arg2);
 BCValue bc_insn_sub(BCFunction function, BCValue arg1, BCValue arg2);

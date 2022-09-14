@@ -83,3 +83,6 @@ debug/
 /CMakeSettings.json
 
 *.dot
+
+generated.c
+testexec

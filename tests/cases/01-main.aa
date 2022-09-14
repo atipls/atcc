@@ -1,4 +1,6 @@
 
 fun Main(args: string[*]): i32 {
+    assert(true, "This is a test");
+
     return 0;
 }

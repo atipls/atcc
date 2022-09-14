@@ -1,20 +1,20 @@
 
 fun Main(args: string[*]): i32 {
-    result := 1;
-    result += 2;
-    result *= 3;
-    result /= 4;
-    result -= 5;
-    result %= 6;
-    result <<= 7;
-    result >>= 8;
-    result &= 9;
-    result ^= 10;
-    result |= 11;
-    result = -result;
-    result = +result;
-    result = ~result;
-    result = !result;
+    result := 1;          assert(result == 1, "Result is not 1");
+    result += 2;          assert(result == 3, "Result is not 3");
+    result *= 3;          assert(result == 9, "Result is not 9");
+    result /= 4;          assert(result == 2, "Result is not 2");
+    result -= 5;          assert(result == -3, "Result is not -3");
+    result %= 6;          assert(result == -3, "Result is not -3");
+    result <<= 7;         assert(result == -384, "Result is not -384");
+    result >>= 8;         assert(result == -2, "Result is not -2");
+    result &= 9;          assert(result == 8, "Result is not 8");
+    result ^= 10;         assert(result == 2, "Result is not 2");
+    result |= 11;         assert(result == 11, "Result is not 11");
+    result = -result;     assert(result == -11, "Result is not -1");
+    result = +result;     assert(result == 11, "Result is not 11");
+    result = ~result;     assert(result == -12, "Result is not -12");
+    result = !result;     assert(result == 0, "Result is not 0");
     result = 0;
     return result;
 }

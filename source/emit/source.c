@@ -73,14 +73,29 @@ static void bc_generate_type(BCType type, FILE *f) {
 
 static void bc_generate_value(BCValue value, FILE *f) {
     if (value->flags & BC_VALUE_IS_CONSTANT) {
-        assert(value->type->kind == BC_TYPE_BASE);
 
-        fprintf(f, "((");
-        bc_generate_type(value->type, f);
-        if (value->type->is_floating) {
-            fprintf(f, ")(%g))", value->floating);
+        if (value->type->kind == BC_TYPE_BASE) {
+            fprintf(f, "((");
+            bc_generate_type(value->type, f);
+            if (value->type->is_floating) {
+                fprintf(f, ")(%g))", value->floating);
+            } else {
+                fprintf(f, ")(%llu))", value->storage);
+            }
         } else {
-            fprintf(f, ")(%llu))", value->storage);
+            assert(value->type->kind == BC_TYPE_AGGREGATE);
+            assert(string_match(value->type->name, str("string")));
+
+            fprintf(f, "((");
+            bc_generate_type(value->type, f);
+
+            u64 length = value->string.length;
+            if (length > 0)
+                length--;
+
+            fprintf(f, "){.length = %llu, .data = (i8*)", length);
+            fprintf(f, "\"%.*s\"})", strp(value->string));
+
         }
 
         return;
@@ -144,8 +159,15 @@ static void bc_generate_code(BCCode code, FILE *f) {
             bc_generate_value(code->regA, f);
             fprintf(f, ";");
             break;
-        case BC_OP_GET_ELEMENT:
-            assert(!"unimplemented");
+        case BC_OP_GET_INDEX:
+            bc_generate_type(code->regD->type, f);
+            fprintf(f, " ");
+            bc_generate_value(code->regD, f);
+            fprintf(f, " = &((");
+            bc_generate_value(code->regA, f);
+            fprintf(f, ").data[");
+            bc_generate_value(code->regB, f);
+            fprintf(f, "]);");
             break;
         case BC_OP_GET_FIELD:
             bc_generate_type(code->regD->type, f);
@@ -153,7 +175,22 @@ static void bc_generate_code(BCCode code, FILE *f) {
             bc_generate_value(code->regD, f);
             fprintf(f, " = &(");
             bc_generate_value(code->regA, f);
-            fprintf(f, "->%.*s);", strp(code->regA->type->base->members[code->regB->storage].name));
+            {
+                BCType type = code->regA->type;
+                if (type->kind == BC_TYPE_POINTER) {
+                    type = type->base;
+                    fprintf(f, "->");
+                } else {
+                    fprintf(f, ".");
+                }
+
+                if (type->kind == BC_TYPE_ARRAY)
+                    fprintf(f, "%s", code->regB->storage == 0 ? "length" : "data");
+                else
+                    fprintf(f, "%.*s", strp(type->members[code->regB->storage].name));
+
+                fprintf(f, ");");
+            }
 
             break;
         case BC_OP_STORE:
@@ -210,10 +247,13 @@ static void bc_generate_code(BCCode code, FILE *f) {
             fprintf(f, ") goto __block%llu; else goto __block%llu;", code->bbT->serial, code->bbF->serial);
             break;
         case BC_OP_CALL: {
-            bc_generate_type(code->result->type, f);
-            fprintf(f, " ");
-            bc_generate_value(code->result, f);
-            fprintf(f, " = ");
+            if (code->result->type != bc_type_void) {
+                bc_generate_type(code->result->type, f);
+                fprintf(f, " ");
+                bc_generate_value(code->result, f);
+                fprintf(f, " = ");
+            }
+
             bc_generate_value(code->target, f);
             fprintf(f, "(");
             for (u32 i = 0; i < code->num_args; i++) {
@@ -231,7 +271,7 @@ static void bc_generate_code(BCCode code, FILE *f) {
             break;
         case BC_OP_CAST_BITWISE:
             fprintf(f, " /* cast_bitwise */ ");
-            break;
+            //break;
         case BC_OP_CAST_INT_TO_PTR:
         case BC_OP_CAST_PTR_TO_INT:
         case BC_OP_CAST_INT_TRUNC:
@@ -338,8 +378,6 @@ bool bc_generate_source(BCContext context, FILE *f) {
         fprintf(f, "} Array_%u;\n\n", array->emit_index);
     }
 
-
-
     vector_foreach(BCType, aggregate_ptr, context->aggregates)
         bc_generate_aggregate(*aggregate_ptr, f);
 
@@ -352,14 +390,10 @@ bool bc_generate_source(BCContext context, FILE *f) {
 
     fprintf(f, "\nstatic char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
 
-    // TODO: Generate forward decls.
-    vector_foreach(BCFunction, function_ptr, context->functions)
+    vector_foreach(BCFunction, function_ptr, context->functions) {
+        if (!(*function_ptr)->is_extern)
             bc_generate_function(*function_ptr, f);
-
-    fprintf(f, "\nint main(int argc, char **argv) {\n"
-               "    __atcc_init_globals();\n"
-               "    return Main((Array_%u){0,0});\n"
-               "}\n", 0);
+    }
 
     return false;
 }

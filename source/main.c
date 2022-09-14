@@ -40,7 +40,7 @@ static void print_semantic_errors(SemanticError *errors) {
 
 i32 main(i32 argc, cstring argv[]) {
     options.output = str("generated");
-#if 0
+#if 1-1
     if (!parse_options(argc, argv)) {
         fprintf(stderr, "Usage: atcc [options] <files>\n");
         return 1;
@@ -48,7 +48,8 @@ i32 main(i32 argc, cstring argv[]) {
 #else
     (void) argc;
     (void) argv;
-    vector_push(options.inputs, str("tests/cases/03-local.aa"));
+    vector_push(options.inputs, str("tests/preload.aa"));
+    vector_push(options.inputs, str("tests/cases/04-string.aa"));
 #endif
 
     SemanticContext *sema_context = sema_initialize();

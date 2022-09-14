@@ -4,5 +4,6 @@ fun Main(args: string[*]): i32 {
         return 0;
     }
 
+    assert(false, "The apocalypse is upon us.");
     return 1;
 }

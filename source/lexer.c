@@ -126,7 +126,7 @@ Token *lexer_tokenize(string filename, Buffer data) {
         if (lexer_peek(&lexer) == 0)
             current->kind = TOKEN_EOF;
 
-        if (isalpha(lexer_peek(&lexer))) {
+        if (isalpha(lexer_peek(&lexer)) || lexer_peek(&lexer) == '_') {
             lexer_build_identifier(&lexer, current);
             continue;
         }
