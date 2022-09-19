@@ -140,7 +140,7 @@ static BCValue build_expression_unary(BuildContext *context, ASTNode *expression
     if (expression->unary_operator == TOKEN_AMPERSAND)
         return build_expression_lvalue(context, expression->unary_target);
     if (expression->unary_operator == TOKEN_STAR)
-        return null;
+        return bc_insn_load(context->function, build_expression(context, expression->unary_target));
 
     BCValue target = build_expression(context, expression->unary_target);
     switch (expression->unary_operator) {

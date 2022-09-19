@@ -441,7 +441,26 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
         }
         case AST_EXPRESSION_UNARY: {
             Type *resolved = sema_analyze_expression(context, expression->unary_target);
-            printf("TODO Unary\n");
+
+            if (expression->unary_operator == TOKEN_STAR) {
+                if (resolved->kind != TYPE_POINTER) {
+                    sema_errorf(context, expression->unary_target, "cannot dereference non-pointer type");
+                    return null;
+                }
+
+                expression->base_type = resolved->base_type;
+                return resolved->base_type;
+            }
+
+            if (expression->unary_operator == TOKEN_AMPERSAND) {
+                // TODO: Check that the target is an lvalue
+                Type *pointer = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
+                pointer->base_type = resolved;
+
+                pointer_table_set(&context->pointer_types, resolved, pointer);
+                expression->base_type = pointer;
+                return pointer;
+            }
 
             expression->base_type = resolved;
             return resolved;
@@ -530,7 +549,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
                     // TODO: Better error message?
                     sema_errorf(context, expression->call_target, "function argument %d has the wrong type", i + 1);
-                    //return null;
+                    // return null;
                 }
             }
 

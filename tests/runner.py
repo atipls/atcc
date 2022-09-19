@@ -16,11 +16,15 @@ DISABLED_WARNINGS = [
 
 def run_test_stage(path, stage, command):
     result = subprocess.run(command, capture_output=True)
+    stderr_output = result.stderr.decode("utf-8")
     if result.returncode != 0:
         print(f"FAIL[{stage}]: {path}")
         print(result.stdout.decode("utf-8"))
-        print(result.stderr.decode("utf-8"))
+        print(stderr_output)
         return False
+
+    if stage == "COMP" and len(stderr_output) > 0:
+        print(stderr_output)
 
     return True
 
