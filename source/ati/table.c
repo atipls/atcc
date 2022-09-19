@@ -106,3 +106,87 @@ bool string_table_remove(StringTable *table, string key) {
     table->length--;
     return true;
 }
+
+static PointerTableEntry *pointer_table_find_entry(PointerTableEntry *entries, u32 capacity, void *key) {
+    u32 index = (u64)key & (capacity - 1);
+
+    PointerTableEntry *tombstone = null;
+    for (;;) {
+        PointerTableEntry *entry = &entries[index];
+        if (entry->key == key)
+            return entry;
+
+        if (entry->key == null) {
+            if (entry->empty) {
+                return tombstone ? tombstone : entry;
+            } else {
+                if (!tombstone)
+                    tombstone = entry;
+            }
+        }
+
+        index = (index + 1) & (capacity - 1);
+    }
+}
+
+static void pointer_table_resize(PointerTable *table, u32 new_capacity) {
+    PointerTableEntry *new_entries = make_n(PointerTableEntry, new_capacity);
+    for (u32 i = 0; i < new_capacity; i++)
+        new_entries[i].empty = true;
+
+    table->length = 0;
+    for (u32 i = 0; i < table->capacity; i++) {
+        PointerTableEntry *entry = &table->entries[i];
+        if (entry->key == null) continue;
+        PointerTableEntry *new_entry = pointer_table_find_entry(new_entries, new_capacity, entry->key);
+        new_entry->key = entry->key;
+        new_entry->value = entry->value;
+        new_entry->empty = false;
+        table->length++;
+    }
+
+    free(table->entries);
+    table->entries = new_entries;
+    table->capacity = new_capacity;
+}
+
+void pointer_table_create(PointerTable *table) {
+    table->length = 0;
+    table->capacity = 0;
+    table->entries = null;
+}
+
+void pointer_table_destroy(PointerTable *table) {
+    if (table->entries != null) {
+        free(table->entries);
+        table->entries = null;
+    }
+    table->length = 0;
+    table->capacity = 0;
+}
+
+void *pointer_table_get(PointerTable *table, void *key) {
+    if (table->length == 0) return null;
+
+    PointerTableEntry *entry = pointer_table_find_entry(table->entries, table->capacity, key);
+    if (entry->key == null) return null;
+
+    return entry->value;
+}
+
+bool pointer_table_set(PointerTable *table, void *key, void *value) {
+    if (table->length + 1 > table->capacity * LOAD_CAPACITY_FACTOR) {
+        u32 new_capacity = ((table->capacity) < 8 ? 8 : (table->capacity) * 2);
+        pointer_table_resize(table, new_capacity);
+    }
+
+    PointerTableEntry *entry = pointer_table_find_entry(table->entries, table->capacity, key);
+    bool is_new_entry = entry->key == null;
+
+    entry->key = key;
+    entry->value = value;
+    entry->empty = false;
+
+    if (is_new_entry) table->length++;
+    return is_new_entry;
+}

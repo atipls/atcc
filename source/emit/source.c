@@ -395,5 +395,9 @@ bool bc_generate_source(BCContext context, FILE *f) {
             bc_generate_function(*function_ptr, f);
     }
 
+    fprintf(f, "int main(int argc, char **argv) {\n"
+               "    return __atcc_start((i32)argc, (i8**)argv);\n"
+               "}\n");
+
     return false;
 }

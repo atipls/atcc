@@ -4,6 +4,9 @@
 static BCType build_convert_type(BuildContext *context, Type *type) {
     if (!type) return bc_type_void;
 
+    BCType cached = pointer_table_get(&context->types, type);
+    if (cached) return cached;
+
     static BCType bc_type_string = null;
 
     switch (type->kind) {
@@ -20,7 +23,10 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         case TYPE_F64: return bc_type_f64;
         case TYPE_POINTER: {
             BCType base_type = build_convert_type(context, type->base_type);
-            return bc_type_pointer(base_type);
+            BCType pointer_type = bc_type_pointer(base_type);
+
+            pointer_table_set(&context->types, type, pointer_type);
+            return pointer_type;
         }
         case TYPE_FUNCTION: {
             BCType result = build_convert_type(context, type->function_return_type);
@@ -30,7 +36,10 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
                 vector_push(parameters, parameter);
             }
 
-            return bc_type_function(result, parameters, vector_len(parameters));
+            BCType function_type = bc_type_function(result, parameters, vector_len(parameters));
+
+            pointer_table_set(&context->types, type, function_type);
+            return function_type;
         }
         case TYPE_STRING: {
             if (!bc_type_string) {
@@ -53,10 +62,16 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
             if (type->array_size) {
                 BCType base_type = build_convert_type(context, type->array_base);
                 BCValue size = bc_value_make_consti(bc_type_u32, type->array_size);
-                return bc_type_array(context->bc, base_type, size, false);
+                BCType array_type = bc_type_array(context->bc, base_type, size, false);
+
+                pointer_table_set(&context->types, type, array_type);
+                return array_type;
             } else {
                 BCType base_type = build_convert_type(context, type->array_base);
-                return bc_type_array(context->bc, base_type, null, type->array_is_dynamic);
+                BCType array_type = bc_type_array(context->bc, base_type, null, type->array_is_dynamic);
+
+                pointer_table_set(&context->types, type, array_type);
+                return array_type;
             }
         }
         case TYPE_AGGREGATE: {
@@ -609,6 +624,7 @@ BuildContext *build_initialize(SemanticContext *sema) {
     string_table_create(&context->functions);
     string_table_create(&context->globals);
     string_table_create(&context->locals);
+    pointer_table_create(&context->types);
 
     BCType initializer_type = bc_type_function(bc_type_void, null, 0);
     context->initializer = bc_function_create(context->bc, initializer_type, str("__atcc_init_globals"));

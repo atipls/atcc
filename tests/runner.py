@@ -8,6 +8,11 @@ ARGS = sys.argv[1:]
 DEBUG = len(ARGS) > 0 and ARGS[0].lower() == "debug"
 COMPILER_PATH = "build/atcc" if not DEBUG else "debug/atcc"
 
+DISABLED_WARNINGS = [
+    "-Wno-pointer-sign",
+    "-Wno-incompatible-library-redeclaration"
+]
+
 
 def run_test_stage(path, stage, command):
     result = subprocess.run(command, capture_output=True)
@@ -24,7 +29,7 @@ def run_a_test(path):
     if not run_test_stage(path, "ATCC", [COMPILER_PATH, "tests/preload.aa", path]):
         return False
 
-    if not run_test_stage(path, "COMP", ["gcc", "-o", "testexec", "generated.c"]):
+    if not run_test_stage(path, "COMP", ["gcc", *DISABLED_WARNINGS, "-o", "testexec", "generated.c"]):
         return False
 
     if not run_test_stage(path, "EXEC", ["./testexec"]):

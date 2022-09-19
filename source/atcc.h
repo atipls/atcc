@@ -439,6 +439,9 @@ typedef struct {
     SemanticScope *scope;
     SemanticError *errors;
 
+    PointerTable array_types;
+    PointerTable pointer_types;
+
     Type *type_void;
     Type *type_i8;
     Type *type_u8;
@@ -465,6 +468,8 @@ typedef struct {
     StringTable functions;
     StringTable globals;
     StringTable locals;
+
+    PointerTable types;
 
     BCFunction function;
     BCFunction initializer;

@@ -40,7 +40,7 @@ static void print_semantic_errors(SemanticError *errors) {
 
 i32 main(i32 argc, cstring argv[]) {
     options.output = str("generated");
-#if 1-1
+#if 1//-1
     if (!parse_options(argc, argv)) {
         fprintf(stderr, "Usage: atcc [options] <files>\n");
         return 1;

@@ -11,9 +11,9 @@ fun Main(args: string[*]): i32 {
     result &= 9;          assert(result == 8, "Result is not 8");
     result ^= 10;         assert(result == 2, "Result is not 2");
     result |= 11;         assert(result == 11, "Result is not 11");
-    result = -result;     assert(result == -11, "Result is not -1");
-    result = +result;     assert(result == 11, "Result is not 11");
-    result = ~result;     assert(result == -12, "Result is not -12");
+    result = -result;     assert(result == -11, "Result is not -11");
+    result = +result;     assert(result == -11, "Result is not -11");
+    result = ~result;     assert(result == 11, "Result is not 11");
     result = !result;     assert(result == 0, "Result is not 0");
     result = 0;
     return result;

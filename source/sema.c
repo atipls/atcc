@@ -71,6 +71,9 @@ SemanticContext *sema_initialize() {
     context->global = make_scope(null);
     context->scope = context->global;
 
+    pointer_table_create(&context->array_types);
+    pointer_table_create(&context->pointer_types);
+
     context->type_void = make_type(TYPE_VOID, 1, 1);
     context->type_i8 = make_type(TYPE_I8, 1, 1);
     context->type_u8 = make_type(TYPE_U8, 1, 1);
@@ -174,13 +177,21 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
         }
         case AST_DECLARATION_TYPE_POINTER: {
             Type *base_type = sema_resolve_type(context, node->parent);
+            Type *cached_type = pointer_table_get(&context->pointer_types, base_type);
+            if (cached_type) return cached_type;
+
             Type *pointer = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
             pointer->base_type = base_type;
 
+            pointer_table_set(&context->pointer_types, base_type, pointer);
             return pointer;
         }
         case AST_DECLARATION_TYPE_ARRAY: {
             Type *base_type = sema_resolve_type(context, node->array_base);
+            Type *cached_type = pointer_table_get(&context->array_types, base_type);
+
+            if (cached_type)
+                return cached_type;
 
             if (node->array_size) {
                 sema_analyze_expression(context, node->array_size);
@@ -189,19 +200,17 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
                 Type *array = make_type(TYPE_ARRAY, size, size);// TODO: Alignment.
                 array->array_base = base_type;
                 array->array_size = node->array_size->literal_as_u64;
+
+                pointer_table_set(&context->array_types, base_type, array);
                 return array;
-            } else {
+            } else {//if (!node->array_is_dynamic) {
+                printf("Creating array...\n");
                 Type *array = make_type(TYPE_ARRAY, 12, 12);
                 array->array_base = base_type;
+
+                pointer_table_set(&context->array_types, base_type, array);
                 return array;
             }
-
-            if (node->array_is_dynamic) {
-                unimplemented;
-                return null;
-            }
-
-
         }
         default: unimplemented; return null;
     }
@@ -306,6 +315,7 @@ static bool sema_complete_aggregate(SemanticContext *context, Type* aggregate) {
     // Strings and arrays have their special treatment, they don't need to be resolved as structs.
     if (aggregate->kind == TYPE_ARRAY || aggregate->kind == TYPE_STRING)
         return true;
+
     if (aggregate->kind != TYPE_AGGREGATE)
         return false;
     if (aggregate->is_complete)
@@ -515,7 +525,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             for (u32 i = 0; i < given_args; i++) {
                 ASTNode *argument = expression->call_arguments[i];
                 sema_analyze_expression(context, argument);
-                if (i >= wanted_args) break;// Don't typecheck variadic arguments.
+                if (i >= wanted_args) break; // Don't typecheck variadic arguments.
 
                 if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
                     // TODO: Better error message?

@@ -17,7 +17,7 @@ fun assert(condition: bool, message: string) {
 
 fun __atcc_init_globals();
 
-fun main(argc: i32, argv: i8**): i32 {
+fun __atcc_start(argc: i32, argv: i8**): i32 {
     __atcc_init_globals();
 
     args: string[*];
