@@ -388,7 +388,8 @@ bool bc_generate_source(BCContext context, FILE *f) {
         fprintf(f, ";\n");
     }
 
-    fprintf(f, "\nstatic char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
+    if (context->global_size > 0)
+        fprintf(f, "\nstatic char GLOBAL_VARIABLES[%d];\n\n", context->global_size);
 
     vector_foreach(BCFunction, function_ptr, context->functions) {
         if (!(*function_ptr)->is_extern)

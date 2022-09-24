@@ -1,8 +1,3 @@
-
-fun test(a: i32[1], b: i32[1]): i32 {
-    return a[0] + b[0];
-}
-
 fun Main(args: string[*]): i32 {
     assert("Hello, World!".length == 13, "Uh oh, something is wrong with the string length");
 

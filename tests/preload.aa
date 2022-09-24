@@ -24,7 +24,7 @@ fun __atcc_start(argc: i32, argv: i8**): i32 {
     args.length = argc;
 
     for (i := 0; i < argc; i += 1) {
-        args[i].data = argv[i];
+        args[i].data = cast(u8*) argv[i];
         args[i].length = strlen(argv[i]);
     }
 

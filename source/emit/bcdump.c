@@ -67,7 +67,9 @@ static void bc_dump_value(BCValue value, FILE *f) {
     }
 
     if (value->flags & BC_VALUE_IS_CONSTANT) {
-        if (value->type->kind != BC_TYPE_BASE) {
+        if (value->type->kind == BC_TYPE_AGGREGATE && string_match(value->type->name, str("string"))) {
+            fprintf(f, "\"%.*s\"", strp(value->string));
+        } else if (value->type->kind != BC_TYPE_BASE) {
             fprintf(f, "unknown_constant[");
             bc_dump_type(value->type, f);
             fprintf(f, "]");
