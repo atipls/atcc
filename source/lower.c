@@ -2,7 +2,7 @@
 #include "ati/utils.h"
 
 static BCType build_convert_type(BuildContext *context, Type *type) {
-    if (!type) return bc_type_void;
+    if (!type) return bc_type_i32; // bc_type_void; THIS IS A HACK
 
     BCType cached = pointer_table_get(&context->types, type);
     if (cached) return cached;
@@ -308,12 +308,26 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
     BCType type = build_convert_type(context, node_type(expression));
     BCValue compound = bc_function_define(context->function, type);
 
+    u64 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
         ASTNode *field = *field_ptr;
         switch (field->kind) {
-            case AST_EXPRESSION_COMPOUND_FIELD: { break; }
-            case AST_EXPRESSION_COMPOUND_FIELD_NAME: { break; }
-            case AST_EXPRESSION_COMPOUND_FIELD_INDEX: { break; }
+            case AST_EXPRESSION_COMPOUND_FIELD: {
+                BCValue value = build_expression(context, field->compound_field_target);
+                BCValue index = bc_value_make_consti(bc_type_u64, current_default_index++);
+                BCValue target = bc_insn_get_index(context->function, compound, type, index);
+
+                bc_insn_store(context->function, target, value);
+                break;
+            }
+            case AST_EXPRESSION_COMPOUND_FIELD_NAME: {
+                assert(!"unreachable");
+                break;
+            }
+            case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {
+                assert(!"unreachable");
+                break;
+            }
             default: assert(!"unreachable"); break;
         }
     }
