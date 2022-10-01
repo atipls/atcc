@@ -264,9 +264,11 @@ Token *lexer_tokenize(string filename, Buffer data) {
                     lexer_read(&lexer);
                     while (lexer_peek(&lexer) != '\0' && lexer_peek(&lexer) != '\r' && lexer_peek(&lexer) != '\n')
                         lexer_read(&lexer);
+                    vector_raw_len(lexer.buffer)--; // We don't want to emit the slash if we are in a comment
                 } else if (lexer_peek(&lexer) == '*') { // Multi line comment
                     lexer_read(&lexer);
                     lexer_skip_multiline_comment(&lexer);
+                    vector_raw_len(lexer.buffer)--; // We don't want to emit the slash if we are in a comment
                 }
                 break;
             }

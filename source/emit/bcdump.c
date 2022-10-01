@@ -31,7 +31,16 @@ static void bc_dump_type(BCType type, FILE *f) {
             bc_dump_type(type->base, f);
             fprintf(f, "*");
             break;
-        case BC_TYPE_ARRAY: break;
+        case BC_TYPE_ARRAY:
+            bc_dump_type(type->element, f);
+            if (type->is_dynamic) {
+                fprintf(f, "[]");
+            } else if (type->count) {
+                fprintf(f, "[%llu]", type->count->storage);
+            } else {
+                fprintf(f, "[*]");
+            }
+            break;
         case BC_TYPE_FUNCTION:
             fprintf(f, "fun(");
             for (size_t i = 0; i < type->num_params; i++) {
