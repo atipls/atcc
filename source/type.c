@@ -25,8 +25,19 @@ void fprint_type(FILE *f, Type *type) {
         case TYPE_F64: fprintf(f, "f64"); break;
         case TYPE_STRING: fprintf(f, "string"); break;
         case TYPE_POINTER:
-            print_type(type->base_type);
+            fprint_type(f, type->base_type);
             fprintf(f, "*");
+            break;
+        case TYPE_ARRAY:
+            fprintf(f, "array{");
+            fprint_type(f, type->array_base);
+            if (type->array_is_dynamic) {
+                fprintf(f, "[]}");
+            } else if (type->array_size > 0) {
+                fprintf(f, "[%d]}", type->array_size);
+            } else {
+                fprintf(f, "[*]}");
+            }
             break;
         default: fprintf(f, "{typeid%d}", type->typeid); break;
     }
