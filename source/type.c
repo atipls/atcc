@@ -32,24 +32,10 @@ void fprint_type(FILE *f, Type *type) {
     }
 }
 
-void print_type(Type *type) {
-    fprint_type(stdout, type);
-}
+void print_type(Type *type) { fprint_type(stdout, type); }
 
-bool type_is_integer(Type *type) {
-    return type->kind >= TYPE_I8 && type->kind <= TYPE_U64;
-}
+bool type_is_integer(Type *type) { return type->kind >= TYPE_I8 && type->kind <= TYPE_U64; }
+bool type_is_scalar(Type *type) { return type->kind >= TYPE_I8 && type->kind <= TYPE_FUNCTION; }
+bool type_is_arithmetic(Type *type) { return type->kind >= TYPE_I8 && type->kind <= TYPE_F64; }
 
-bool type_is_scalar(Type *type) {
-    return type->kind >= TYPE_I8 && type->kind <= TYPE_FUNCTION;
-}
-
-bool type_is_arithmetic(Type *type) {
-    return type->kind >= TYPE_I8 && type->kind <= TYPE_F64;
-}
-
-Type *node_type(ASTNode *node) {
-    if (node->conv_type)
-        return node->conv_type;
-    return node->base_type;
-}
+Type *node_type(ASTNode *node) { return node->conv_type ? node->conv_type : node->base_type; }

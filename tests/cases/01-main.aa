@@ -1,4 +1,11 @@
 
+// This is a comment.
+/* This is a comment. */
+/* This is a comment.
+   This is a comment. */
+
+/* /* This is a comment. */ */
+
 fun Main(args: string[*]): i32 {
     assert(true, "This is a test");
 

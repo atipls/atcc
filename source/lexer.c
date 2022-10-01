@@ -32,6 +32,12 @@ static i8 lexer_peek(Lexer *lexer) {
     return lexer->source.data[lexer->offset];
 }
 
+static i8 lexer_peek_next(Lexer *lexer) {
+    if (lexer->offset + 1 >= lexer->source.length)
+        return 0;
+    return lexer->source.data[lexer->offset + 1];
+}
+
 static void lexer_build_identifier(Lexer *lexer, Token *token) {
 #define initstr(s) { .data = (i8 *) (s), .length = sizeof(s) - 1 }
     static struct {
@@ -106,6 +112,23 @@ static void lexer_build_equal(Lexer *lexer, Token *token, TokenKind token1, Toke
     }
 }
 
+static void lexer_skip_multiline_comment(Lexer *lexer) {
+    int level = 1;
+    while (lexer_peek(lexer) != 0 && level > 0) {
+        if (lexer_peek(lexer) == '/' && lexer_peek_next(lexer) == '*') {
+            level++;
+            lexer_read(lexer);
+            lexer_read(lexer);
+        } else if (lexer_peek(lexer) == '*' && lexer_peek_next(lexer) == '/') {
+            level--;
+            lexer_read(lexer);
+            lexer_read(lexer);
+        } else {
+            lexer_read(lexer);
+        }
+    }
+}
+
 Token *lexer_tokenize(string filename, Buffer data) {
     Lexer lexer = {0};
     lexer.filename = filename;
@@ -147,7 +170,6 @@ Token *lexer_tokenize(string filename, Buffer data) {
             case '+': lexer_build_equal(&lexer, current, TOKEN_PLUS, TOKEN_PLUS_EQUAL); break;
             case '-': lexer_build_equal(&lexer, current, TOKEN_MINUS, TOKEN_MINUS_EQUAL); break;
             case '*': lexer_build_equal(&lexer, current, TOKEN_STAR, TOKEN_STAR_EQUAL); break;
-            case '/': lexer_build_equal(&lexer, current, TOKEN_SLASH, TOKEN_SLASH_EQUAL); break;
             case '%': lexer_build_equal(&lexer, current, TOKEN_PERCENT, TOKEN_PERCENT_EQUAL); break;
             case '^': lexer_build_equal(&lexer, current, TOKEN_CARET, TOKEN_CARET_EQUAL); break;
             case '~': lexer_build_equal(&lexer, current, TOKEN_TILDE, TOKEN_TILDE_EQUAL); break;
@@ -230,6 +252,21 @@ Token *lexer_tokenize(string filename, Buffer data) {
                 } else if (lexer_peek(&lexer) == '=') {
                     lexer_read(&lexer);
                     current->kind = TOKEN_GREATER_EQUAL;
+                }
+                break;
+            }
+            case '/': {
+                current->kind = TOKEN_SLASH;
+                if (lexer_peek(&lexer) == '=') {
+                    lexer_read(&lexer);
+                    current->kind = TOKEN_SLASH_EQUAL;
+                } else if (lexer_peek(&lexer) == '/') { // Single line comment
+                    lexer_read(&lexer);
+                    while (lexer_peek(&lexer) != '\0' && lexer_peek(&lexer) != '\r' && lexer_peek(&lexer) != '\n')
+                        lexer_read(&lexer);
+                } else if (lexer_peek(&lexer) == '*') { // Multi line comment
+                    lexer_read(&lexer);
+                    lexer_skip_multiline_comment(&lexer);
                 }
                 break;
             }
