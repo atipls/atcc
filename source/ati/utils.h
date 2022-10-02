@@ -11,9 +11,9 @@
 #define vector_at(a, i) ((&(a))[i])
 #define vector_free(a) ((a) ? free(vector_raw(a)), 0 : 0)
 
-#define vector_raw(a) ((i32 *) (void *) (a) -2)
-#define vector_raw_cap(a) vector_raw(a)[0]
-#define vector_raw_len(a) vector_raw(a)[1]
+#define vector_raw(a) (((i32 *) (void *) (a) -2))
+#define vector_raw_cap(a) (vector_raw(a)[0])
+#define vector_raw_len(a) (vector_raw(a)[1])
 
 #define vector_needs_grow(a, n) ((a) == 0 || vector_raw_len(a) + (n) >= vector_raw_cap(a))
 #define vector_maybe_grow(a, n) (vector_needs_grow(a, (n)) ? vector_grow(a, n) : 0)

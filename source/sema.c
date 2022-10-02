@@ -562,7 +562,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 field_type = field_type->base_type;
 
             if (field_type->kind != TYPE_AGGREGATE && field_type->kind != TYPE_ARRAY && field_type->kind != TYPE_STRING)
-                sema_errorf(context, expression->field_target, "cannot use a field of a non-aggregate.");
+                sema_errorf(context, expression->field_target, "cannot get a field of a non-aggregate.");
 
             if (field_type->kind == TYPE_ARRAY) {
                 if (string_match(expression->field_name, str("length"))) {
