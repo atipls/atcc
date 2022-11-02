@@ -172,6 +172,7 @@ struct ASTNode {
     Location location;
     Type *base_type;
     Type *conv_type;
+    Variant constant;
 
     union {
         string value;

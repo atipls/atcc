@@ -11,7 +11,7 @@ COMPILER_PATH = "build/atcc" if not DEBUG else "debug/atcc"
 DISABLED_WARNINGS = [
     "-Wno-pointer-sign",
     "-Wno-incompatible-library-redeclaration",
-    "-Wno-builtin-declaration-mismatch"
+    # "-Wno-builtin-declaration-mismatch"
 ]
 
 

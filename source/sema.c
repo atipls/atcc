@@ -309,7 +309,7 @@ static u32 sema_resolve_aggregate_item(SemanticContext *context, ASTNode *node, 
     }
 }
 
-static bool sema_complete_aggregate(SemanticContext *context, Type* aggregate) {
+static bool sema_complete_aggregate(SemanticContext *context, Type *aggregate) {
     assert(aggregate);
 
     // Strings and arrays have their special treatment, they don't need to be resolved as structs.
@@ -329,7 +329,7 @@ static bool sema_complete_aggregate(SemanticContext *context, Type* aggregate) {
             total_size += sema_resolve_aggregate_item(context, *field, &fields, node->aggregate_kind == TOKEN_KW_UNION);
 
     aggregate->size = total_size;
-    aggregate->pack = total_size; // TODO: alignment
+    aggregate->pack = total_size;// TODO: alignment
 
     aggregate->fields = fields;
     aggregate->is_complete = true;
@@ -341,6 +341,16 @@ static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
     Type *source = node_type(node);
     if (!source || !target) return false;
     if (source == target) return true;
+
+    if (source->kind == TYPE_POINTER && target->kind == TYPE_POINTER) {
+        if (source->base_type == target->base_type)
+            return true;
+        printf("TODO: Mismatching pointers ");
+        print_type(source);
+        printf(" -> ");
+        print_type(target);
+        printf("\n");
+    }
 
     // Cannot downcast implicitly
     if (type_is_scalar(source) && type_is_scalar(target)) {
@@ -544,7 +554,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             for (u32 i = 0; i < given_args; i++) {
                 ASTNode *argument = expression->call_arguments[i];
                 sema_analyze_expression(context, argument);
-                if (i >= wanted_args) break; // Don't typecheck variadic arguments.
+                if (i >= wanted_args) break;// Don't typecheck variadic arguments.
 
                 if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
                     // TODO: Better error message?
@@ -619,9 +629,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 printf(" to ");
                 print_type(resolved);
                 printf("\n");
-            }
-
-            if (target != resolved) {
+            } else if (target != resolved) {
                 printf("TODO: Cast\n");
             }
 
@@ -744,7 +752,9 @@ static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode
                 return false;
             }
 
-            // TODO: Check that start <= end
+
+            // TODO: Check that start < end
+            // TODO: Evaluate constant expressions
         }
     }
 
@@ -788,8 +798,7 @@ static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *sta
     bool returns = true;
     bool has_default = false;
     vector_foreach_ptr(ASTNode, switch_case, statement->switch_cases)
-            returns = sema_analyze_statement_switch_case(context, *switch_case, expression_type, &has_default) && returns;
-
+        returns = sema_analyze_statement_switch_case(context, *switch_case, expression_type, &has_default) && returns;
 
     context->scope = old_scope;
     return returns;
@@ -816,12 +825,16 @@ static bool sema_analyze_statement_assign(SemanticContext *context, ASTNode *sta
     Type *left = sema_analyze_expression(context, statement->assign_target);
     Type *right = sema_analyze_expression(context, statement->assign_value);
 
-    if (left != right)
-        printf("TODO: Typecheck assign\n");
+    if (left != right) {
+        printf("TODO: Typecheck assign ");
+        print_type(left);
+        printf(" = ");
+        print_type(right);
+        printf("\n");
+    }
 
     if (statement->assign_operator == TOKEN_EQUAL)
         statement->base_type = right;
-
 
 
     printf("TODO: check assignment\n");
@@ -836,8 +849,14 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
         case AST_STATEMENT_DO_WHILE: return sema_analyze_statement_while(context, statement);
         case AST_STATEMENT_FOR: return sema_analyze_statement_for(context, statement);
         case AST_STATEMENT_SWITCH: return sema_analyze_statement_switch(context, statement);
-        // case AST_STATEMENT_BREAK:
-        // case AST_STATEMENT_CONTINUE:
+        case AST_STATEMENT_BREAK:
+            if (!context->scope->can_break)
+                sema_errorf(context, statement, "break is not allowed here");
+            return false;
+        case AST_STATEMENT_CONTINUE:
+            if (!context->scope->can_continue)
+                sema_errorf(context, statement, "continue is not allowed here");
+            return false;
         case AST_STATEMENT_RETURN: {
             if (statement->parent)
                 sema_analyze_expression(context, statement->parent);
@@ -846,7 +865,10 @@ static bool sema_analyze_statement(SemanticContext *context, ASTNode *statement)
         case AST_STATEMENT_INIT: sema_analyze_statement_init(context, statement); return false;
         case AST_STATEMENT_EXPRESSION: sema_analyze_expression(context, statement->parent); return false;
         case AST_STATEMENT_ASSIGN: sema_analyze_statement_assign(context, statement); return false;
-        default: printf("Unimplemented %d\n", statement->kind); unimplemented; return false;
+        default:
+            printf("Unimplemented %d\n", statement->kind);
+            unimplemented;
+            return false;
     }
 }
 

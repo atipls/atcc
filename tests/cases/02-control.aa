@@ -1,0 +1,31 @@
+
+fun Main(args: string[*]): i32 {
+    while (0) {
+        assert(false, "This should never happen");
+    }
+
+    for (i := 0; i < 10; i += 1) {
+        assert(i < 10, "This should never happen");
+    }
+
+    switch (-19) {
+        case -20..-10:
+            assert(true, "This should happen");
+        case 20..30:
+            assert(false, "This should never happen");
+        case 0:
+            assert(false, "This should never happen");
+        default:
+            assert(false, "This should never happen");
+    }
+
+    if (1 != 1) {
+        assert(false, "This should never happen");
+    } else if (1 == 1) {
+        assert(true, "This should happen");
+    } else {
+        assert(false, "This should never happen");
+    }
+
+    return 0;
+}
