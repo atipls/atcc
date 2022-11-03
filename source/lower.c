@@ -76,6 +76,7 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         }
         case TYPE_AGGREGATE: {
             assert(type->is_complete);
+
             string name = type->owner->aggregate_name;
             BCType aggregate = string_table_get(&context->aggregates, name);
             if (!aggregate) {

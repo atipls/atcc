@@ -1,7 +1,11 @@
-output  = generated
-backend = c
+project-name = "my-project"
+backend      = "c" # or "arm64" or "amd64"
+build        = "debug" # or "release"
 
 files = [
     "source/main.aa",
     "source/util.aa",
+    @windows "source/os/windows.aa",
+    @linux   "source/os/linux.aa",
+    @macos   "source/os/macos.aa",
 ]

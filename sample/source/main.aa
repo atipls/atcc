@@ -1,0 +1,10 @@
+
+fun puts(str: i8*): i32;
+
+
+fun Main(args: string[*]): i32 {
+    puts("Hello! I'm on the operating system: ");
+    puts(OS_GetName());
+
+    return 0;
+}

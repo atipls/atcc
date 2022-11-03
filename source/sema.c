@@ -188,20 +188,23 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
         }
         case AST_DECLARATION_TYPE_ARRAY: {
             Type *base_type = sema_resolve_type(context, node->array_base);
-            Type *cached_type = pointer_table_get(&context->array_types, base_type);
-
-            if (cached_type)
-                return cached_type;
 
             if (node->array_size) {
                 sema_analyze_expression(context, node->array_size);
                 assert(node->array_size->kind == AST_EXPRESSION_LITERAL_NUMBER);
                 u32 size = (u32) node->array_size->literal_as_u64 * base_type->size;
+
+                // FIXME: Xor-ing the size with the base type is not a very good way to make a hash
+                uint64_t type_hash = (uint64_t) base_type ^ node->array_size->literal_as_u64;
+
+                Type *cached_type = pointer_table_get(&context->array_types, (void *) type_hash);
+                if (cached_type) return cached_type;
+
                 Type *array = make_type(TYPE_ARRAY, size, size);// TODO: Alignment.
                 array->array_base = base_type;
                 array->array_size = node->array_size->literal_as_u64;
 
-                pointer_table_set(&context->array_types, base_type, array);
+                pointer_table_set(&context->array_types, (void *) type_hash, array);
                 return array;
             } else {//if (!node->array_is_dynamic) {
                 printf("Creating array...\n");

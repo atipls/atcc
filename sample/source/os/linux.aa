@@ -1,0 +1,4 @@
+
+fun OS_GetName(): string {
+    return "Linux";
+}
