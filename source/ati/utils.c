@@ -12,7 +12,6 @@ void *vector_growf(void *arr, int increment, int itemsize) {
     return reallocated_data + 2;
 }
 
-
 Buffer read_file(string path) {
     Buffer buffer = {0};
     cstring cpath = string_to_cstring(path);

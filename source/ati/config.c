@@ -7,7 +7,6 @@ bool options_parse(string filename, option *options) {
         return false;
 
 
-
     return true;
 }
 

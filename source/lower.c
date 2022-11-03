@@ -2,7 +2,7 @@
 #include "ati/utils.h"
 
 static BCType build_convert_type(BuildContext *context, Type *type) {
-    if (!type) return bc_type_i32; // bc_type_void; THIS IS A HACK
+    if (!type) return bc_type_i32;// bc_type_void; THIS IS A HACK
 
     BCType cached = pointer_table_get(&context->types, type);
     if (cached) return cached;
@@ -293,13 +293,14 @@ static BCValue build_expression_cast(BuildContext *context, ASTNode *expression)
     else if (!type_src->is_floating && type_dst->is_floating)
         cast_opcode = type_dst->is_signed ? BC_OP_CAST_SINT_TO_FP : BC_OP_CAST_UINT_TO_FP;
     else if (bc_type_is_integer(type_src) && bc_type_is_integer(type_dst))
-        cast_opcode = type_src->size > type_dst->size ? BC_OP_CAST_INT_TRUNC :
-                type_dst->is_signed ? BC_OP_CAST_INT_SEXT : BC_OP_CAST_INT_ZEXT;
+        cast_opcode = type_src->size > type_dst->size ? BC_OP_CAST_INT_TRUNC : type_dst->is_signed ? BC_OP_CAST_INT_SEXT
+                                                                                                   : BC_OP_CAST_INT_ZEXT;
     else if (bc_type_is_integer(type_src) && type_dst->kind == BC_TYPE_POINTER)
         cast_opcode = BC_OP_CAST_INT_TO_PTR;
     else if (type_src->kind == BC_TYPE_POINTER && bc_type_is_integer(type_dst))
         cast_opcode = BC_OP_CAST_PTR_TO_INT;
-    else assert(type_src->size == type_dst->size);
+    else
+        assert(type_src->size == type_dst->size);
 
     return bc_insn_cast(context->function, cast_opcode, target, type_dst);
 }
@@ -431,10 +432,10 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
                 } else if (string_match(expression->field_name, str("data"))) {
                     field_index = 1;
                     field_type = type->kind == TYPE_ARRAY
-                            ? bc_type_pointer(build_convert_type(context, type->array_base))
-                            : bc_type_pointer(bc_type_u8);
-                }
-                else assert(!"unreachable");
+                                         ? bc_type_pointer(build_convert_type(context, type->array_base))
+                                         : bc_type_pointer(bc_type_u8);
+                } else
+                    assert(!"unreachable");
 
                 return bc_insn_get_field(context->function, target, field_type, field_index);
             }
@@ -521,12 +522,12 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
                 break;
             }
 
-            TokenKind operator = build_get_assignment_operator(statement->assign_operator);
+            TokenKind op = build_get_assignment_operator(statement->assign_operator);
 
             BCValue lhs = bc_insn_load(context->function, target);
             BCValue rhs = build_expression(context, statement->assign_value);
 
-            BCValue result = build_expression_binary_values(context, operator, lhs, rhs);
+            BCValue result = build_expression_binary_values(context, op, lhs, rhs);
             bc_insn_store(context->function, target, result);
             break;
         }
@@ -561,7 +562,6 @@ static void build_function(BuildContext *context, ASTNode *function) {
 }
 
 static void build_variable(BuildContext *context, ASTNode *variable) {
-
 }
 
 static void build_declaration(BuildContext *context, ASTNode *declaration) {

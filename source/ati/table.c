@@ -99,7 +99,7 @@ bool string_table_remove(StringTable *table, string key) {
     StringTableEntry *entry = string_table_find_entry(table->entries, table->capacity, key);
     if (entry->key.length == 0) return false;
 
-    entry->key.length = 0; // Tombstone
+    entry->key.length = 0;// Tombstone
     entry->value = null;
     entry->empty = true;
 
@@ -108,7 +108,7 @@ bool string_table_remove(StringTable *table, string key) {
 }
 
 static PointerTableEntry *pointer_table_find_entry(PointerTableEntry *entries, u32 capacity, void *key) {
-    u32 index = (u64)key & (capacity - 1);
+    u32 index = (u64) key & (capacity - 1);
 
     PointerTableEntry *tombstone = null;
     for (;;) {

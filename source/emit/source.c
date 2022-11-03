@@ -95,7 +95,6 @@ static void bc_generate_value(BCValue value, FILE *f) {
 
             fprintf(f, "){.length = %llu, .data = (i8*)", length);
             fprintf(f, "\"%.*s\"})", strp(value->string));
-
         }
 
         return;
@@ -354,8 +353,7 @@ bool bc_generate_source(BCContext context, FILE *f) {
 
     vector_foreach(BCType, aggregate_ptr, context->aggregates) {
         fprintf(f, "typedef struct %.*s %.*s;\n",
-                strp((*aggregate_ptr)->name), strp((*aggregate_ptr)->name)
-        );
+                strp((*aggregate_ptr)->name), strp((*aggregate_ptr)->name));
     }
 
     fprintf(f, "\n\n");
@@ -379,7 +377,7 @@ bool bc_generate_source(BCContext context, FILE *f) {
     }
 
     vector_foreach(BCType, aggregate_ptr, context->aggregates)
-        bc_generate_aggregate(*aggregate_ptr, f);
+            bc_generate_aggregate(*aggregate_ptr, f);
 
     fprintf(f, "\n\n");
 

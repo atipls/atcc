@@ -582,7 +582,7 @@ static ASTNode *parse_typedecl_argument(Parser *parser) {
 
 static ASTNode *parse_typedecl_function(Parser *parser) {
     if (!parser_consume(parser, TOKEN_KW_FUN))
-        return null; // Unreachable?
+        return null;// Unreachable?
     if (!parser_consume(parser, TOKEN_OPEN_PAREN))
         return make_error(parser, str("Expected '(' after 'fun'."));
 

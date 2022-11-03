@@ -19,10 +19,10 @@
 #define vector_maybe_grow(a, n) (vector_needs_grow(a, (n)) ? vector_grow(a, n) : 0)
 #define vector_grow(a, n) (*((void **) &(a)) = vector_growf((a), (n), sizeof(*(a))))
 
-#define vector_foreach(Type, name, vec) for (Type *name = (vec), *name##_end = ((vec) + vector_len(vec)); (size_t)name != (size_t)name##_end; ++name)
-#define vector_foreach_ptr(Type, name, vec) for (Type **name = (vec), **name##_end = ((vec) + vector_len(vec)); (size_t)name != (size_t)name##_end; ++name)
+#define vector_foreach(Type, name, vec) for (Type *name = (vec), *name##_end = ((vec) + vector_len(vec)); (size_t) name != (size_t) name##_end; ++name)
+#define vector_foreach_ptr(Type, name, vec) for (Type **name = (vec), **name##_end = ((vec) + vector_len(vec)); (size_t) name != (size_t) name##_end; ++name)
 
-#define Vec(Type) Type*
+#define Vec(Type) Type *
 
 #define array_length(a) (sizeof(a) / sizeof(a[0]))
 

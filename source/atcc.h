@@ -388,7 +388,6 @@ struct Type {
             TypeField *fields;
             bool is_complete;
         };
-
     };
 };
 

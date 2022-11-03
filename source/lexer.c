@@ -39,7 +39,8 @@ static i8 lexer_peek_next(Lexer *lexer) {
 }
 
 static void lexer_build_identifier(Lexer *lexer, Token *token) {
-#define initstr(s) { .data = (i8 *) (s), .length = sizeof(s) - 1 }
+#define initstr(s) \
+    { .data = (i8 *) (s), .length = sizeof(s) - 1 }
     static struct {
         string ident;
         TokenKind kind;
@@ -260,15 +261,15 @@ Token *lexer_tokenize(string filename, Buffer data) {
                 if (lexer_peek(&lexer) == '=') {
                     lexer_read(&lexer);
                     current->kind = TOKEN_SLASH_EQUAL;
-                } else if (lexer_peek(&lexer) == '/') { // Single line comment
+                } else if (lexer_peek(&lexer) == '/') {// Single line comment
                     lexer_read(&lexer);
                     while (lexer_peek(&lexer) != '\0' && lexer_peek(&lexer) != '\r' && lexer_peek(&lexer) != '\n')
                         lexer_read(&lexer);
-                    vector_raw_len(lexer.buffer)--; // We don't want to emit the slash if we are in a comment
-                } else if (lexer_peek(&lexer) == '*') { // Multi line comment
+                    vector_raw_len(lexer.buffer)--;    // We don't want to emit the slash if we are in a comment
+                } else if (lexer_peek(&lexer) == '*') {// Multi line comment
                     lexer_read(&lexer);
                     lexer_skip_multiline_comment(&lexer);
-                    vector_raw_len(lexer.buffer)--; // We don't want to emit the slash if we are in a comment
+                    vector_raw_len(lexer.buffer)--;// We don't want to emit the slash if we are in a comment
                 }
                 break;
             }

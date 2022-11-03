@@ -377,26 +377,45 @@ static bool sema_node_convert_explicit(ASTNode *node, Type *target) {
 
 static void sema_unify_binary_operands(SemanticContext *context, ASTNode *left, ASTNode *right) {
     if (node_type(left) == node_type(right)) return;
-    if      (node_type(left ) == context->type_f64)         right->conv_type = context->type_f64;
-    else if (node_type(right) == context->type_f64)         left ->conv_type = context->type_f64;
-    else if (node_type(left ) == context->type_f32)         right->conv_type = context->type_f32;
-    else if (node_type(right) == context->type_f32)         left ->conv_type = context->type_f32;
-    else if (node_type(left ) == context->type_i64)         right->conv_type = context->type_i64;
-    else if (node_type(right) == context->type_i64)         left ->conv_type = context->type_i64;
-    else if (node_type(left ) == context->type_i32)         right->conv_type = context->type_i32;
-    else if (node_type(right) == context->type_i32)         left ->conv_type = context->type_i32;
-    else if (node_type(left ) == context->type_i16)         right->conv_type = context->type_i16;
-    else if (node_type(right) == context->type_i16)         left ->conv_type = context->type_i16;
-    else if (node_type(left ) == context->type_i8)          right->conv_type = context->type_i8;
-    else if (node_type(right) == context->type_i8)          left ->conv_type = context->type_i8;
-    else if (node_type(left ) == context->type_u64)         right->conv_type = context->type_u64;
-    else if (node_type(right) == context->type_u64)         left ->conv_type = context->type_u64;
-    else if (node_type(left ) == context->type_u32)         right->conv_type = context->type_u32;
-    else if (node_type(right) == context->type_u32)         left ->conv_type = context->type_u32;
-    else if (node_type(left ) == context->type_u16)         right->conv_type = context->type_u16;
-    else if (node_type(right) == context->type_u16)         left ->conv_type = context->type_u16;
-    else if (node_type(left ) == context->type_u8)          right->conv_type = context->type_u8;
-    else if (node_type(right) == context->type_u8)          left ->conv_type = context->type_u8;
+    if (node_type(left) == context->type_f64) right->conv_type = context->type_f64;
+    else if (node_type(right) == context->type_f64)
+        left->conv_type = context->type_f64;
+    else if (node_type(left) == context->type_f32)
+        right->conv_type = context->type_f32;
+    else if (node_type(right) == context->type_f32)
+        left->conv_type = context->type_f32;
+    else if (node_type(left) == context->type_i64)
+        right->conv_type = context->type_i64;
+    else if (node_type(right) == context->type_i64)
+        left->conv_type = context->type_i64;
+    else if (node_type(left) == context->type_i32)
+        right->conv_type = context->type_i32;
+    else if (node_type(right) == context->type_i32)
+        left->conv_type = context->type_i32;
+    else if (node_type(left) == context->type_i16)
+        right->conv_type = context->type_i16;
+    else if (node_type(right) == context->type_i16)
+        left->conv_type = context->type_i16;
+    else if (node_type(left) == context->type_i8)
+        right->conv_type = context->type_i8;
+    else if (node_type(right) == context->type_i8)
+        left->conv_type = context->type_i8;
+    else if (node_type(left) == context->type_u64)
+        right->conv_type = context->type_u64;
+    else if (node_type(right) == context->type_u64)
+        left->conv_type = context->type_u64;
+    else if (node_type(left) == context->type_u32)
+        right->conv_type = context->type_u32;
+    else if (node_type(right) == context->type_u32)
+        left->conv_type = context->type_u32;
+    else if (node_type(left) == context->type_u16)
+        right->conv_type = context->type_u16;
+    else if (node_type(right) == context->type_u16)
+        left->conv_type = context->type_u16;
+    else if (node_type(left) == context->type_u8)
+        right->conv_type = context->type_u8;
+    else if (node_type(right) == context->type_u8)
+        left->conv_type = context->type_u8;
     else {
         sema_errorf(context, left, "incompatible types (unimplemented)");
         right->conv_type = node_type(left);
@@ -746,7 +765,12 @@ static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode
         }
 
         if (switch_pattern->switch_pattern_end) {
-            sema_analyze_expression(context, switch_pattern->switch_pattern_end);
+            Type *end_type = sema_analyze_expression(context, switch_pattern->switch_pattern_end);
+            if (!type_is_arithmetic(end_type)) {
+                sema_errorf(context, switch_pattern->switch_pattern_end, "switch case ranges must be of an arithmetic type");
+                return false;
+            }
+
             if (!sema_node_convert_implicit(switch_pattern->switch_pattern_end, expression_type)) {
                 sema_errorf(context, switch_pattern->switch_pattern_end, "invalid type in switch case end.");
                 return false;
@@ -798,7 +822,7 @@ static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *sta
     bool returns = true;
     bool has_default = false;
     vector_foreach_ptr(ASTNode, switch_case, statement->switch_cases)
-        returns = sema_analyze_statement_switch_case(context, *switch_case, expression_type, &has_default) && returns;
+            returns = sema_analyze_statement_switch_case(context, *switch_case, expression_type, &has_default) && returns;
 
     context->scope = old_scope;
     return returns;

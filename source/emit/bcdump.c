@@ -1,6 +1,6 @@
-#include <assert.h>
 #include "ati/utils.h"
 #include "bytecode.h"
+#include <assert.h>
 
 static void bc_dump_type_base(BCType type, FILE *f) {
 #define TYPE_BASE_OF(cmp, val) \
