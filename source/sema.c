@@ -194,8 +194,7 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
                 assert(node->array_size->kind == AST_EXPRESSION_LITERAL_NUMBER);
                 u32 size = (u32) node->array_size->literal_as_u64 * base_type->size;
 
-                // FIXME: Xor-ing the size with the base type is not a very good way to make a hash
-                uint64_t type_hash = (uint64_t) base_type ^ node->array_size->literal_as_u64;
+                uint64_t type_hash = (uint64_t) base_type | (node->array_size->literal_as_u64 << 32);
 
                 Type *cached_type = pointer_table_get(&context->array_types, (void *) type_hash);
                 if (cached_type) return cached_type;
@@ -207,11 +206,16 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
                 pointer_table_set(&context->array_types, (void *) type_hash, array);
                 return array;
             } else {//if (!node->array_is_dynamic) {
-                printf("Creating array...\n");
+                uint64_t type_hash = (uint64_t) base_type | node->array_is_dynamic;
+
+                Type *cached_type = pointer_table_get(&context->array_types, (void *) type_hash);
+                if (cached_type) return cached_type;
+
                 Type *array = make_type(TYPE_ARRAY, 12, 12);
                 array->array_base = base_type;
+                array->array_is_dynamic = node->array_is_dynamic;
 
-                pointer_table_set(&context->array_types, base_type, array);
+                pointer_table_set(&context->array_types, (void *) type_hash, array);
                 return array;
             }
         }
@@ -457,9 +461,45 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
         return null;
     }
 
+    // TODO: Check that all members are of the same type
+
     Type *type = expression->compound_type ? sema_resolve_type(context, expression->compound_type) : expected;
 
-    // TODO: Check that all members are of the same type
+    u64 current_default_index = 0;
+    vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
+        ASTNode *field = *field_ptr;
+
+        sema_analyze_expression(context, field->compound_field_target);
+
+        switch (field->kind) {
+            case AST_EXPRESSION_COMPOUND_FIELD: {
+                if (type->kind == TYPE_AGGREGATE) {
+                    if (current_default_index >= vector_len(type->fields)) {
+                        sema_errorf(context, field, "too many fields in compound literal");
+                        return null;
+                    }
+
+                    field->base_type = type->fields[current_default_index++].type;
+                } else if (type->kind == TYPE_ARRAY) {
+                    field->base_type = type->array_base;
+                } else {
+                    sema_errorf(context, field, "cannot use field syntax on non-aggregate type");
+                    return null;
+                }
+
+                break;
+            }
+            case AST_EXPRESSION_COMPOUND_FIELD_NAME: {
+                assert(!"unreachable");
+                break;
+            }
+            case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {
+                assert(!"unreachable");
+                break;
+            }
+            default: assert(!"unreachable"); break;
+        }
+    }
 
     return type;
 }
@@ -551,6 +591,16 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             expression->base_type = entry->type;
             return entry->type;
         }
+        case AST_EXPRESSION_SIZEOF: {
+            Type *type = sema_resolve_type(context, expression->sizeof_type);
+            if (!type) return null;
+
+            expression->sizeof_type->base_type = type;
+            expression->base_type = context->type_u64;
+            return expression->base_type;
+        }
+        case AST_EXPRESSION_ALIGNOF: unimplemented; break;
+        case AST_EXPRESSION_OFFSETOF: unimplemented; break;
         case AST_EXPRESSION_CALL: {
             Type *target_function_type = sema_analyze_expression(context, expression->call_target);
             bool target_is_function = target_function_type->kind == TYPE_FUNCTION ||
@@ -757,6 +807,24 @@ static bool sema_analyze_statement_while(SemanticContext *context, ASTNode *stat
     return false;
 }
 
+static bool sema_analyze_statement_for(SemanticContext *context, ASTNode *statement) {
+    SemanticScope *old_scope = context->scope;
+    context->scope = make_scope(old_scope);
+
+    if (statement->for_initializer) sema_analyze_statement(context, statement->for_initializer);
+    if (statement->for_condition) sema_analyze_expression(context, statement->for_condition);// TODO: Check if its a valid condition.
+    if (statement->for_increment) sema_analyze_statement(context, statement->for_increment);
+
+    context->scope->can_break = true;
+    context->scope->can_continue = true;
+
+    sema_analyze_statement(context, statement->for_body);
+
+    context->scope = old_scope;
+    return false;
+}
+
+
 static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode *statement, Type *expression_type, bool *has_default) {
     vector_foreach_ptr(ASTNode, switch_pattern_ptr, statement->switch_case_patterns) {
         ASTNode *switch_pattern = *switch_pattern_ptr;
@@ -791,23 +859,6 @@ static bool sema_analyze_statement_switch_case(SemanticContext *context, ASTNode
     }
 
     return sema_analyze_statement(context, statement->switch_case_body);
-}
-
-static bool sema_analyze_statement_for(SemanticContext *context, ASTNode *statement) {
-    SemanticScope *old_scope = context->scope;
-    context->scope = make_scope(old_scope);
-
-    if (statement->for_initializer) sema_analyze_statement(context, statement->for_initializer);
-    if (statement->for_condition) sema_analyze_expression(context, statement->for_condition);// TODO: Check if its a valid condition.
-    if (statement->for_increment) sema_analyze_statement(context, statement->for_increment);
-
-    context->scope->can_break = true;
-    context->scope->can_continue = true;
-
-    sema_analyze_statement(context, statement->for_body);
-
-    context->scope = old_scope;
-    return false;
 }
 
 static bool sema_analyze_statement_switch(SemanticContext *context, ASTNode *statement) {

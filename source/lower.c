@@ -307,17 +307,35 @@ static BCValue build_expression_cast(BuildContext *context, ASTNode *expression)
 }
 
 static BCValue build_expression_compound(BuildContext *context, ASTNode *expression) {
-    BCType type = build_convert_type(context, node_type(expression));
+    Type *ntype = node_type(expression);
+    BCType type = build_convert_type(context, ntype);
     BCValue compound = bc_function_define(context->function, type);
+    assert(compound->type->kind == BC_TYPE_POINTER);
 
     u64 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
         ASTNode *field = *field_ptr;
         switch (field->kind) {
             case AST_EXPRESSION_COMPOUND_FIELD: {
+                BCType field_type = build_convert_type(context, node_type(field));
                 BCValue value = build_expression(context, field->compound_field_target);
-                BCValue index = bc_value_make_consti(bc_type_u64, current_default_index++);
-                BCValue target = bc_insn_get_index(context->function, compound, type, index);
+                BCValue target = null;
+
+                // Strings and arrays need to access the data pointer.
+                switch (ntype->kind) {
+                    case TYPE_ARRAY:
+                    case TYPE_STRING: {
+                        BCValue index = bc_value_make_consti(bc_type_u64, current_default_index++);
+                        target = bc_insn_get_field(context->function, compound, field_type, 1);
+
+                        break;
+                    }
+                    case TYPE_AGGREGATE: {
+                        target = bc_insn_get_field(context->function, compound, field_type, current_default_index++);
+                        break;
+                    }
+                    default: assert(!"unreachable"); break;
+                }
 
                 bc_insn_store(context->function, target, value);
                 break;
@@ -362,6 +380,12 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
                 resolved = bc_insn_load(context->function, resolved);
             return resolved;
         }
+        case AST_EXPRESSION_SIZEOF: {
+            BCType target_type = build_convert_type(context, node_type(expression->sizeof_type));
+            return bc_value_make_consti(bc_type_u64, target_type->size);
+        }
+        case AST_EXPRESSION_ALIGNOF: assert(!"unimplemented"); break;
+        case AST_EXPRESSION_OFFSETOF: assert(!"unimplemented"); break;
         case AST_EXPRESSION_CALL: {
             // TODO: Check if it's a function pointer.
             BCValue target = build_expression(context, expression->call_target);
@@ -446,7 +470,15 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             BCValue index = build_expression(context, expression->index_index);
 
             Type *type = node_type(expression->index_target);
-            assert(type->kind == TYPE_ARRAY || type->kind == TYPE_STRING);
+            assert(type->kind == TYPE_ARRAY || type->kind == TYPE_POINTER || type->kind == TYPE_STRING);
+
+            // For arrays and strings, we need to get the data pointer.
+            if (type->kind != TYPE_POINTER) {
+                BCType field_type = type->kind == TYPE_ARRAY
+                                            ? bc_type_pointer(build_convert_type(context, type->array_base))
+                                            : bc_type_pointer(bc_type_u8);
+                target = bc_insn_get_field(context->function, target, field_type, 1);
+            }
 
             BCType element_type = build_convert_type(context, type->base_type);
             return bc_insn_get_index(context->function, target, element_type, index);
@@ -492,16 +524,129 @@ static void build_statement_if(BuildContext *context, ASTNode *statement) {
     bc_function_set_block(context->function, last);
 }
 
+static void build_statement_while(BuildContext *context, ASTNode *statement) {
+    BCBlock cond = bc_block_make(context->function);
+    BCBlock body = bc_block_make(context->function);
+    BCBlock last = bc_block_make(context->function);
+
+    bc_insn_jump(context->function, cond);
+
+    bc_function_set_block(context->function, cond);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
+    BCValue condition = build_expression(context, statement->while_condition);
+    BCValue comparison = bc_insn_ne(context->function, condition, c0);
+    bc_insn_jump_if(context->function, comparison, body, last);
+
+    bc_function_set_block(context->function, body);
+
+    context->break_target = last;
+    context->continue_target = cond;
+
+    build_statement(context, statement->while_body);
+    body = bc_function_get_block(context->function);
+    if (!bc_block_is_terminated(body))
+        bc_insn_jump(context->function, cond);
+
+    bc_function_set_block(context->function, last);
+}
+
+static void build_statement_do_while(BuildContext *context, ASTNode *statement) {
+    BCBlock cond = bc_block_make(context->function);
+    BCBlock body = bc_block_make(context->function);
+    BCBlock last = bc_block_make(context->function);
+
+    bc_insn_jump(context->function, body);
+
+    bc_function_set_block(context->function, body);
+
+    context->break_target = last;
+    context->continue_target = cond;
+
+    build_statement(context, statement->while_body);
+    body = bc_function_get_block(context->function);
+    if (!bc_block_is_terminated(body))
+        bc_insn_jump(context->function, cond);
+
+    bc_function_set_block(context->function, cond);
+    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
+    BCValue condition = build_expression(context, statement->while_condition);
+    BCValue comparison = bc_insn_ne(context->function, condition, c0);
+    bc_insn_jump_if(context->function, comparison, body, last);
+
+    bc_function_set_block(context->function, last);
+}
+
+static void build_statement_for(BuildContext *context, ASTNode *statement) {
+
+    BCBlock cond = bc_block_make(context->function);
+    BCBlock body = bc_block_make(context->function);
+    BCBlock loop = bc_block_make(context->function);
+    BCBlock last = bc_block_make(context->function);
+
+    BCBlock old_break_target = context->break_target;
+    BCBlock old_continue_target = context->continue_target;
+
+    if (statement->for_initializer) build_statement(context, statement->for_initializer);
+
+    bc_insn_jump(context->function, cond);
+
+    bc_function_set_block(context->function, cond);
+
+    if (statement->for_condition) {
+        BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
+        BCValue condition = build_expression(context, statement->for_condition);
+        BCValue comparison = bc_insn_ne(context->function, condition, c0);
+        bc_insn_jump_if(context->function, comparison, body, last);
+    } else {
+        bc_insn_jump(context->function, body);
+    }
+
+    bc_function_set_block(context->function, body);
+
+    context->break_target = last;
+    context->continue_target = cond;
+
+    build_statement(context, statement->for_body);
+
+    body = bc_function_get_block(context->function);
+    if (!bc_block_is_terminated(body))
+        bc_insn_jump(context->function, loop);
+
+    bc_function_set_block(context->function, loop);
+    if (statement->for_increment) build_statement(context, statement->for_increment);
+    bc_insn_jump(context->function, cond);
+
+    bc_function_set_block(context->function, last);
+
+    context->break_target = old_break_target;
+    context->continue_target = old_continue_target;
+}
+
+static void build_statement_switch(BuildContext *context, ASTNode *statement) {
+    BCBlock last = bc_block_make(context->function);
+
+    BCBlock old_break_target = context->break_target;
+    context->break_target = last;
+
+    BCValue condition = build_expression(context, statement->switch_expression);
+
+    vector_foreach_ptr(ASTNode, switch_case_ptr, statement->switch_cases) {
+        ASTNode *switch_case = *switch_case_ptr;
+
+
+    }
+}
+
 static void build_statement(BuildContext *context, ASTNode *statement) {
     switch (statement->kind) {
         case AST_STATEMENT_BLOCK: build_statement_block(context, statement); break;
         case AST_STATEMENT_IF: build_statement_if(context, statement); break;
-        // case AST_STATEMENT_WHILE: break;
-        // case AST_STATEMENT_DO_WHILE: break;
-        case AST_STATEMENT_FOR: break;
-        // case AST_STATEMENT_SWITCH: break;
-        // case AST_STATEMENT_BREAK: break;
-        // case AST_STATEMENT_CONTINUE: break;
+        case AST_STATEMENT_WHILE: build_statement_while(context, statement); break;
+        case AST_STATEMENT_DO_WHILE: build_statement_do_while(context, statement); break;
+        case AST_STATEMENT_FOR: build_statement_for(context, statement); break;
+        case AST_STATEMENT_SWITCH: build_statement_switch(context, statement); break;
+        case AST_STATEMENT_BREAK: bc_insn_jump(context->function, context->break_target); break;
+        case AST_STATEMENT_CONTINUE: bc_insn_jump(context->function, context->continue_target); break;
         case AST_STATEMENT_RETURN: bc_insn_return(context->function, build_expression(context, statement->parent)); break;
         case AST_STATEMENT_INIT: {
             BCType type = build_convert_type(context, node_type(statement));

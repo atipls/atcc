@@ -11,6 +11,7 @@ COMPILER_PATH = "build/atcc" if not DEBUG else "debug/atcc"
 DISABLED_WARNINGS = [
     "-Wno-pointer-sign",
     "-Wno-incompatible-library-redeclaration",
+    "-Wno-incompatible-pointer-types",
     # "-Wno-builtin-declaration-mismatch"
 ]
 
@@ -34,7 +35,7 @@ def run_a_test(path):
     if not run_test_stage(path, "ATCC", [COMPILER_PATH, "tests/preload.aa", path]):
         return False
 
-    if not run_test_stage(path, "COMP", ["gcc", *DISABLED_WARNINGS, "-o", "testexec", "generated.c"]):
+    if not run_test_stage(path, "COMP", ["gcc", "-O3", "-g", *DISABLED_WARNINGS, "-o", "testexec", "generated.c"]):
         return False
 
     if not run_test_stage(path, "EXEC", ["./testexec"]):

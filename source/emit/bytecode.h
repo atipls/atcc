@@ -189,6 +189,7 @@ struct SBCFunction {
     BCBlock current_block;
 
     BCValue params;
+    BCValue *locals;
     u32 last_temporary;
     u32 last_block_serial;
     u32 stack_size;

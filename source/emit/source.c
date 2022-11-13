@@ -111,9 +111,7 @@ static void bc_generate_value(BCValue value, FILE *f) {
     }
 
     if (value->flags & BC_VALUE_IS_ON_STACK) {
-        fprintf(f, "((");
-        bc_generate_type(value->type, f);
-        fprintf(f, ")(&STACK[%llu]))", value->storage);
+        fprintf(f, "(&L%llu)", value->storage);
         return;
     }
 
@@ -164,7 +162,7 @@ static void bc_generate_code(BCCode code, FILE *f) {
             bc_generate_value(code->regD, f);
             fprintf(f, " = &((");
             bc_generate_value(code->regA, f);
-            fprintf(f, ").data[");
+            fprintf(f, ")[");
             bc_generate_value(code->regB, f);
             fprintf(f, "]);");
             break;
@@ -314,8 +312,15 @@ static void bc_generate_function_type(BCFunction function, FILE *f) {
 static void bc_generate_function(BCFunction function, FILE *f) {
     bc_generate_function_type(function, f);
     fprintf(f, " {\n");
-    if (function->stack_size > 0)
-        fprintf(f, "    char STACK[%d];\n", function->stack_size);
+    if (function->stack_size > 0) {
+        fprintf(f, "    // char STACK[%d];\n", function->stack_size);
+        vector_foreach(BCValue, local_ptr, function->locals) {
+            BCValue local = *local_ptr;
+            fprintf(f, "    ");
+            bc_generate_type(local->type->base, f);
+            fprintf(f, " L%llu;\n", local->storage);
+        }
+    }
 
     for (BCBlock block = function->first_block; block; block = block->next) {
         if (block->input) {

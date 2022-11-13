@@ -167,6 +167,7 @@ BCValue bc_function_define(BCFunction function, BCType type) {
     value->type = bc_type_pointer(type);
     value->storage = function->stack_size;
     function->stack_size += type->size;
+    vector_push(function->locals, value);
     return value;
 }
 

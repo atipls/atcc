@@ -171,6 +171,50 @@ static ASTNode *parse_expression_operand(Parser *parser) {
         return node;
     }
 
+    if (parser_check(parser, TOKEN_KW_SIZEOF)) {
+        parser_advance(parser);
+        if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+            return make_error(parser, str("Expected '(' after 'sizeof'"));
+        ASTNode *type = parse_typedecl(parser);
+        if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+            return make_error(parser, str("Expected ')' after 'sizeof'"));
+        ASTNode *node = make_ast(AST_EXPRESSION_SIZEOF);
+        node->sizeof_type = type;
+        return node;
+    }
+
+    if (parser_check(parser, TOKEN_KW_ALIGNOF)) {
+        parser_advance(parser);
+        if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+            return make_error(parser, str("Expected '(' after 'alignof'"));
+        ASTNode *type = parse_typedecl(parser);
+        if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+            return make_error(parser, str("Expected ')' after 'alignof'"));
+        ASTNode *node = make_ast(AST_EXPRESSION_ALIGNOF);
+        node->alignof_type = type;
+        return node;
+    }
+
+    if (parser_check(parser, TOKEN_KW_OFFSETOF)) {
+        parser_advance(parser);
+        if (!parser_consume(parser, TOKEN_OPEN_PAREN))
+            return make_error(parser, str("Expected '(' after 'offsetof'"));
+        ASTNode *type = parse_typedecl(parser);
+        if (!parser_consume(parser, TOKEN_COMMA))
+            return make_error(parser, str("Expected ',' after 'offsetof' type"));
+        if (!parser_consume(parser, TOKEN_IDENTIFIER))
+            return make_error(parser, str("Expected identifier after 'offsetof' type"));
+        string field = parser->previous->value;
+
+        if (!parser_consume(parser, TOKEN_CLOSE_PAREN))
+            return make_error(parser, str("Expected ')' after 'offsetof'"));
+
+        ASTNode *node = make_ast(AST_EXPRESSION_OFFSETOF);
+        node->offsetof_type = type;
+        node->offsetof_field = field;
+        return node;
+    }
+
     if (parser_check(parser, TOKEN_OPEN_BRACE))
         return parse_expression_compound(parser, null);
 

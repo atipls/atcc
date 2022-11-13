@@ -7,6 +7,5 @@ fun Main(args: string[*]): i32 {
     bar: i32[1] = { 4 };
 
     assert(add(foo, bar) == 6, "add(foo, bar) == 6");
-
     return 0;
 }

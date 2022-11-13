@@ -1,31 +1,49 @@
 
 fun Main(args: string[*]): i32 {
+    accumulator := 0;
+
     while (0) {
+        accumulator += 1;
         assert(false, "This should never happen");
     }
 
+    do {
+        accumulator += 1;
+        assert(true, "This should happen");
+    } while (0);
+
     for (i := 0; i < 10; i += 1) {
+        accumulator += 1;
         assert(i < 10, "This should never happen");
     }
 
     switch (-19) {
-        case -20..-10:
+        case -20 .. -10:
+            accumulator += 1;
             assert(true, "This should happen");
-        case 20..30:
+        case 20 .. 30:
+            accumulator += 1;
             assert(false, "This should never happen");
         case 0:
+            accumulator += 1;
             assert(false, "This should never happen");
         default:
+            accumulator += 1;
             assert(false, "This should never happen");
     }
 
     if (1 != 1) {
+        accumulator += 1;
         assert(false, "This should never happen");
     } else if (1 == 1) {
+        accumulator += 1;
         assert(true, "This should happen");
     } else {
+        accumulator += 1;
         assert(false, "This should never happen");
     }
+
+    assert(accumulator == 13, "Expected 13 as the accumulator value");
 
     return 0;
 }

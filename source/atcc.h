@@ -154,6 +154,9 @@ typedef enum {
     AST_EXPRESSION_LITERAL_CHAR,
     AST_EXPRESSION_LITERAL_STRING,
     AST_EXPRESSION_IDENTIFIER,
+    AST_EXPRESSION_SIZEOF,
+    AST_EXPRESSION_ALIGNOF,
+    AST_EXPRESSION_OFFSETOF,
     AST_EXPRESSION_CALL,
     AST_EXPRESSION_FIELD,
     AST_EXPRESSION_INDEX,
@@ -303,6 +306,19 @@ struct ASTNode {
         struct {
             ASTNode *call_target;
             ASTNode **call_arguments;
+        };
+
+        struct {
+            ASTNode *sizeof_type;
+        };
+
+        struct {
+            ASTNode *alignof_type;
+        };
+
+        struct {
+            ASTNode *offsetof_type;
+            string offsetof_field;
         };
 
         struct {
