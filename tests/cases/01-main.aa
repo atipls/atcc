@@ -9,5 +9,9 @@
 fun Main(args: string[*]): i32 {
     assert(true, "This is a test");
 
+    for (i := 0; i < args.length; i += 1) {
+        puts(args[i].data);
+    }
+
     return 0;
 }

@@ -341,7 +341,21 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_NAME: {
-                assert(!"unreachable");
+                BCType field_type = build_convert_type(context, node_type(field));
+                BCValue value = build_expression(context, field->compound_field_target);
+                BCValue target = null;
+
+                for (u64 i = 0; i < vector_len(ntype->fields); i++) {
+                    TypeField *type_field = &ntype->fields[i];
+                    if (string_match(type_field->name, field->compound_field_name)) {
+                        target = bc_insn_get_field(context->function, compound, field_type, i);
+                        break;
+                    }
+                }
+
+                assert(target);
+
+                bc_insn_store(context->function, target, value);
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {

@@ -490,7 +490,28 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_NAME: {
-                assert(!"unreachable");
+                if (type->kind != TYPE_AGGREGATE) {
+                    sema_errorf(context, field, "cannot use field syntax on non-aggregate type");
+                    return null;
+                }
+
+                if (!sema_complete_aggregate(context, type))
+                    sema_errorf(context, expression, "cannot use incomplete type here");
+
+                bool found = false;
+                for (u64 i = 0; i < vector_len(type->fields); i++) {
+                    if (string_match(field->compound_field_name, type->fields[i].name)) {
+                        field->base_type = type->fields[i].type;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    sema_errorf(context, field, "field '%.*s' not found in type '%.*s'", strp(field->compound_field_name), strp(type->owner->aggregate_name));
+                    return null;
+                }
+
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {
