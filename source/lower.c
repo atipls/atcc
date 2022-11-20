@@ -366,6 +366,13 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
         }
     }
 
+    // Store the size of the array if it's statically sized.
+    if (ntype->kind == TYPE_ARRAY && ntype->array_size != 0) {
+        BCValue size = bc_value_make_consti(bc_type_u32, ntype->array_size);
+        BCValue target = bc_insn_get_field(context->function, compound, bc_type_u32, 0);
+        bc_insn_store(context->function, target, size);
+    }
+
     return compound;
 }
 
