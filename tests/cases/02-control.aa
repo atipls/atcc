@@ -2,7 +2,7 @@
 fun Main(args: string[*]): i32 {
     accumulator := 0;
 
-    while (0) {
+    while (false) {
         accumulator += 1;
         assert(false, "This should never happen");
     }
@@ -10,7 +10,10 @@ fun Main(args: string[*]): i32 {
     do {
         accumulator += 1;
         assert(true, "This should happen");
-    } while (0);
+        break;
+        accumulator += 1;
+        assert(i < 10, "This should never happen");
+    } while (false);
 
     for (i := 0; i < 10; i += 1) {
         accumulator += 1;

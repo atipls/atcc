@@ -377,7 +377,7 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
 }
 
 static BCValue build_expression(BuildContext *context, ASTNode *expression) {
-    //assert(!expression->conv_type);
+    // assert(!expression->conv_type);
 
     BCType type = build_convert_type(context, node_type(expression));
     switch (expression->kind) {
