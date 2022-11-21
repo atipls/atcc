@@ -12,7 +12,7 @@ fun Main(args: string[*]): i32 {
         assert(true, "This should happen");
         break;
         accumulator += 1;
-        assert(i < 10, "This should never happen");
+        assert(false, "This should never happen");
     } while (false);
 
     for (i := 0; i < 10; i += 1) {

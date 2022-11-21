@@ -5,7 +5,6 @@
 
 #define unimplemented assert(!"unimplemented")
 
-
 static SemanticError make_errorv(ASTNode *node, cstring msg, va_list args) {
     string message = make_string(128);
     vsnprintf((char *) message.data, message.length, msg, args);
@@ -35,6 +34,10 @@ static SemanticScope *make_scope(SemanticScope *parent) {
     SemanticScope *scope = make(SemanticScope);
     string_table_create(&scope->entries);
     scope->parent = parent;
+    if (parent) {
+        scope->can_break = parent->can_break;
+        scope->can_continue = parent->can_continue;
+    }
     return scope;
 }
 
@@ -605,7 +608,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
         case AST_EXPRESSION_IDENTIFIER: {
             SemanticEntry *entry = sema_resolve_name(context, expression->value);
             if (!entry) {
-                sema_errorf(context, expression, "undefined symbol '%s.*'", strp(expression->value));
+                sema_errorf(context, expression, "undefined symbol '%.*s'", strp(expression->value));
                 return null;
             }
 
