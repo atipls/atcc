@@ -7,6 +7,12 @@
 
 #include <assert.h>
 
+#ifdef NDEBUG
+    #define debug if (false)
+#else
+    #define debug if (true)
+#endif
+
 typedef struct {
     string file;
     int line;

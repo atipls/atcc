@@ -724,7 +724,7 @@ static void build_function(BuildContext *context, ASTNode *function) {
     build_statement(context, function->function_body);
     // TODO: For void return types, we should build the instruction on unterminated blocks.
 
-    bc_dump_function(context->function, stderr);
+    debug bc_dump_function(context->function, stderr);
     fflush(stderr);
 }
 

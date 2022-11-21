@@ -83,8 +83,8 @@ i32 main(i32 argc, cstring argv[]) {
         return 1;
     }
 
-    printf("Global scope has %d entries\n", sema_context->global->entries.length);
-    write_program_dot(sema_context->programs[0], "hello.dot");
+    debug printf("Global scope has %d entries\n", sema_context->global->entries.length);
+    debug write_program_dot(sema_context->programs[0], "hello.dot");
 
     BuildContext *build_context = build_initialize(sema_context);
     if (!build_bytecode(build_context)) {
