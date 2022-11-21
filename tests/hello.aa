@@ -1,7 +1,3 @@
-alias bool = i32;
-
-const true  := cast(bool) 1;
-const false := cast(bool) 0;
 
 var aGlobal: u64;
 
@@ -84,7 +80,7 @@ fun Test81(): i8 {
 	return 8 / 2 * (2 + 2);
 }
 
-fun Print(fmt: i8*, ..): i32;
+fun printf(fmt: string, ..): i32;
 
 struct TestStruct {
 	first: i32;
@@ -99,7 +95,7 @@ struct Foo {
 fun Test9(): f32 {
 	aaa := TestStruct {
 		third = 74.0,
-	};
+  };
 	return aaa.third;
 }
 
@@ -192,9 +188,9 @@ fun MuHash(hash: MuId*, data: void*, size: i32) {
     }
 }
 
-fun MuGetId(data: void*, size: i32): MuId {
+fun MuGetId(str: string): MuId {
     res := cast(u32) MU_HASH_INITIAL;
-    MuHash(cast(MuId*) &res, data, size);
+    MuHash(cast(MuId*) &res, str.data, str.length);
     return res;
 }
 
@@ -202,10 +198,6 @@ fun Crash(data: void*): u8 {
 	return *cast(u8*) data;
 }
 
-fun Main(argc: i32, argv: i8**): i32 {
-	return main(argc, argv);
-}
-fun StrLength(str: i8*): usize;
 
 fun Test19(foo: Foo*): Foo* {
 	xxx := foo.self;
@@ -216,7 +208,7 @@ fun add(a: i32, b: i32): i32 {
 	return a + b;
 }
 
-fun main(argc: i32, argv: i8**): i32 {
+fun Main(args: string[*]): i32 {
 	hello: i32;
 
 	if (true) hello = 1;
@@ -235,37 +227,34 @@ fun main(argc: i32, argv: i8**): i32 {
 
 	nextA := ptrToA + 1;
 
-	awesome := Awesome{};
 	aaa.third = 80.0;
 	ptrToA.second = 442;
 
-  awesome.self += 10;
   offset := &(cast(TestStruct *)0).third;
-	Print("Offset is %d\n", offset);
+	printf("Offset is %d\n".data, offset);
 
 	troll: u8 = 170;
 	trol2 := Crash(&troll);
 
-	string := "Testing";
-	Print("s1: '%s' len: %d s2: '%s'\n", string, StrLength(string), string);
-
-	Print("Orig = 0x%X Crash = 0x%X Are they equal? %d\n", troll, trol2, troll == trol2);
+	testString := "Testing";
+	//printf("s1: '%s' len: %d s2: '%s'\n", testString.data, testString.length, testString.data);
+	//printf("Orig = 0x%X Crash = 0x%X Are they equal? %d\n", troll, trol2, troll == trol2);
 
 	bbb[3] = 33.6894;
 
-	zzz := MuGetId("deez nuts", 9);
-	Print("zzz = %x\n", zzz);
-	Print("test lol\n");
-	Print("TestStruct.first = %d\n", aaa.first);
-	Print("TestStruct.second = %d\n", aaa.second);
-	Print("bbb[2] = %g\n", bbb[2]);
-	Print("bbb[3] = %g\n", bbb[3]);
-	Print("ccc = %f\n", ccc);
-	Print("aGlobal = %d\n", aGlobal);
-	Print("hello = %d\n", hello);
-	Print("them = %p\n", qqqq);
-	Print("ptrToA = %p\n", ptrToA);
-	Print("nextA = %p\n", nextA);
-	Print("10+20 = %d\n", 10);
+	zzz := MuGetId("deez nuts");
+	printf("zzz = %x\n".data, zzz);
+	printf("test lol\n".data);
+	//printf("TestStruct.first = %d\n".data, aaa.first);
+	//printf("TestStruct.second = %d\n".data, aaa.second);
+	//printf("bbb[2] = %g\n".data, bbb[2]);
+	//printf("bbb[3] = %g\n".data, bbb[3]);
+	printf("ccc = %f\n".data, ccc);
+	printf("aGlobal = %d\n".data, aGlobal);
+	printf("hello = %d\n".data, hello);
+	printf("them = %p\n".data, qqqq);
+	printf("ptrToA = %p\n".data, ptrToA);
+	printf("nextA = %p\n".data, nextA);
+	printf("10+20 = %d\n".data, 10);
   return 1;
 }

@@ -306,6 +306,9 @@ static void bc_generate_function_type(BCFunction function, FILE *f) {
         fprintf(f, " param%d", i);
         if (i != function->signature->num_params - 1) fprintf(f, ", ");
     }
+
+    if (function->is_variadic) fprintf(f, ", ...");
+
     fprintf(f, ")");
 }
 

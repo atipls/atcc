@@ -518,7 +518,13 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {
-                assert(!"unreachable");
+                // TODO: Check that the index is in bounds
+                if (type->kind != TYPE_ARRAY) {
+                    sema_errorf(context, field, "cannot use index syntax on non-array type");
+                    return null;
+                }
+
+                field->base_type = type->array_base;
                 break;
             }
             default: assert(!"unreachable"); break;
@@ -642,15 +648,22 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 return null;
             }
 
+            /*
             if (given_args > wanted_args && !target_function_type->function_is_variadic) {
                 sema_errorf(context, expression->call_target, "function got too many arguments. wanted %u, given %u", wanted_args, given_args);
                 return null;
-            }
+            }*/
 
             for (u32 i = 0; i < given_args; i++) {
+                if (i >= wanted_args) {
+                    ASTNode *argument = expression->call_arguments[i];
+                    sema_analyze_expression(context, argument);
+                    continue;
+                }
+
                 ASTNode *argument = expression->call_arguments[i];
-                sema_analyze_expression(context, argument);
-                if (i >= wanted_args) break;// Don't typecheck variadic arguments.
+                sema_analyze_expression_expected(context, argument, target_function_type->function_parameters[i]);
+
 
                 if (!sema_node_convert_implicit(argument, target_function_type->function_parameters[i])) {
                     // TODO: Better error message?
@@ -925,7 +938,7 @@ static bool sema_analyze_statement_init(SemanticContext *context, ASTNode *state
 
 static bool sema_analyze_statement_assign(SemanticContext *context, ASTNode *statement) {
     Type *left = sema_analyze_expression(context, statement->assign_target);
-    Type *right = sema_analyze_expression(context, statement->assign_value);
+    Type *right = sema_analyze_expression_expected(context, statement->assign_value, left);
 
     if (left != right) {
         printf("TODO: Typecheck assign ");
@@ -935,9 +948,10 @@ static bool sema_analyze_statement_assign(SemanticContext *context, ASTNode *sta
         printf("\n");
     }
 
+    statement->base_type = left;
+
     if (statement->assign_operator == TOKEN_EQUAL)
         statement->base_type = right;
-
 
     printf("TODO: check assignment\n");
     return true;

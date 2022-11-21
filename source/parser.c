@@ -634,8 +634,15 @@ static ASTNode *parse_typedecl_function(Parser *parser) {
     bool is_variadic = false;
     if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
         do {
+            if (parser_check(parser, TOKEN_DOT_DOT)) {
+                if (is_variadic)
+                    return make_error(parser, str("Variadic arguments must be the last argument in the list."));
+
+                if (!is_variadic)
+                    is_variadic = true;
+            }
+
             vector_push(parameters, parse_typedecl_argument(parser));
-            // TODO: Check for '...'
         } while (parser_consume(parser, TOKEN_COMMA));
     }
 

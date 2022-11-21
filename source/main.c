@@ -1,8 +1,10 @@
 #include "atcc.h"
 #include "ati/table.h"
+#include "ati/utest.h"
 #include "ati/utils.h"
 #include "emit/bytecode.h"
 #include <assert.h>
+#include <string.h>
 
 struct {
     string *inputs;
@@ -38,7 +40,34 @@ static void print_semantic_errors(SemanticError *errors) {
     }
 }
 
+int utest_test_1() {
+    return UTEST_PASS;
+}
+
+int utest_test_2() {
+    return UTEST_FAIL;
+}
+
+int utest_test_3() {
+    *(i32 volatile *) 0 = 0;
+
+    return UTEST_PASS;
+}
+
+UTest utests_main[] = {
+    { str("test_1"), utest_test_1 },
+    { str("test_2"), utest_test_2 },
+    { str("test_3"), utest_test_3 },
+};
+
 i32 main(i32 argc, cstring argv[]) {
+    utest_register(str("main"), utests_main, array_length(utests_main));
+
+    if (argc > 1 && strcmp(argv[1], "utest") == 0) {
+        utest_run();
+        return 0;
+    }
+
     options.output = str("generated");
 #if 1//-1
     if (!parse_options(argc, argv)) {

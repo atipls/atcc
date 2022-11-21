@@ -182,6 +182,7 @@ struct SBCFunction {
     string name;
 
     bool is_extern;
+    bool is_variadic;
 
     BCBlock first_block;
     BCBlock last_block;

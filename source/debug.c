@@ -205,9 +205,31 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
             if (fbody) fprintf(f, "\"%p\" -> \"%p\" [label=\"false\"]\n", node, fbody);
             break;
         }
-        case AST_STATEMENT_WHILE: break;
-        case AST_STATEMENT_DO_WHILE: break;
-        case AST_STATEMENT_FOR: break;
+        case AST_STATEMENT_WHILE: {
+            void *condition = write_node_dot(node->while_condition, f);
+            void *body = write_node_dot(node->while_body, f);
+            if (condition) fprintf(f, "\"%p\" -> \"%p\" [label=\"condition\"]\n", node, condition);
+            if (body) fprintf(f, "\"%p\" -> \"%p\" [label=\"body\"]\n", node, body);
+            break;
+        }
+        case AST_STATEMENT_DO_WHILE: {
+            void *condition = write_node_dot(node->while_condition, f);
+            void *body = write_node_dot(node->while_body, f);
+            if (condition) fprintf(f, "\"%p\" -> \"%p\" [label=\"condition\"]\n", node, condition);
+            if (body) fprintf(f, "\"%p\" -> \"%p\" [label=\"body\"]\n", node, body);
+            break;
+        }
+        case AST_STATEMENT_FOR: {
+            void *init = write_node_dot(node->for_initializer, f);
+            void *condition = write_node_dot(node->for_condition, f);
+            void *increment = write_node_dot(node->for_increment, f);
+            void *body = write_node_dot(node->for_body, f);
+            if (init) fprintf(f, "\"%p\" -> \"%p\" [label=\"init\"]\n", node, init);
+            if (condition) fprintf(f, "\"%p\" -> \"%p\" [label=\"condition\"]\n", node, condition);
+            if (increment) fprintf(f, "\"%p\" -> \"%p\" [label=\"step\"]\n", node, increment);
+            if (body) fprintf(f, "\"%p\" -> \"%p\" [label=\"body\"]\n", node, body);
+            break;
+        }
         case AST_STATEMENT_SWITCH: break;
         case AST_STATEMENT_BREAK: break;
         case AST_STATEMENT_CONTINUE: break;
@@ -223,8 +245,14 @@ static void *write_node_dot(ASTNode *node, FILE *f) {
             if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);
             break;
         };
-        case AST_STATEMENT_EXPRESSION: break;
-        case AST_STATEMENT_ASSIGN: break;
+        case AST_STATEMENT_EXPRESSION: {
+            void *expr = write_node_dot(node->parent, f);
+            if (expr) fprintf(f, "\"%p\" -> \"%p\" [label=\"expression\"]\n", node, expr);
+            break;
+        }
+        case AST_STATEMENT_ASSIGN: {
+            break;
+        }
         case AST_EXPRESSION_PAREN: {
             void *value = write_node_dot(node->parent, f);
             if (value) fprintf(f, "\"%p\" -> \"%p\" [label=\"value\"]\n", node, value);

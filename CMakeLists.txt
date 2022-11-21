@@ -11,6 +11,8 @@ add_executable(atcc
         source/ati/string.h
         source/ati/table.c
         source/ati/table.h
+        source/ati/utest.c
+        source/ati/utest.h
         source/ati/utils.c
         source/ati/utils.h
         source/debug.c

@@ -359,7 +359,12 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
                 break;
             }
             case AST_EXPRESSION_COMPOUND_FIELD_INDEX: {
-                assert(!"unreachable");
+                BCType field_type = build_convert_type(context, node_type(field));
+                BCValue value = build_expression(context, field->compound_field_target);
+                BCValue index = build_expression(context, field->compound_field_index);
+                BCValue target = bc_insn_get_index(context->function, compound, field_type, index);
+
+                bc_insn_store(context->function, target, value);
                 break;
             }
             default: assert(!"unreachable"); break;
@@ -430,11 +435,26 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
 static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expression) {
     switch (expression->kind) {
         case AST_EXPRESSION_PAREN: return build_expression_lvalue(context, expression->parent);
-        // case AST_EXPRESSION_UNARY: return null;
+        case AST_EXPRESSION_UNARY: {
+            if (expression->unary_operator == TOKEN_STAR)
+                return build_expression_lvalue(context, expression->unary_target);
+
+            assert(!"unreachable");
+            return null;
+        }
         case AST_EXPRESSION_IDENTIFIER: {
             // TODO: Pointer constants can be lvalues too.
             BCValue resolved = build_resolve_name(context, expression->value);
             assert(!(resolved->flags & BC_VALUE_IS_CONSTANT));
+
+            // Copy the parameter to the stack if it's used as an lvalue.
+            // TODO: Maybe don't do this?
+            if (resolved->flags & BC_VALUE_IS_PARAMETER) {
+                BCValue local = bc_function_define(context->function, resolved->type);
+                bc_insn_store(context->function, local, resolved);
+
+                return local;
+            }
 
             return resolved;
         }
@@ -653,8 +673,6 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
 
     vector_foreach_ptr(ASTNode, switch_case_ptr, statement->switch_cases) {
         ASTNode *switch_case = *switch_case_ptr;
-
-
     }
 }
 
@@ -707,6 +725,7 @@ static void build_function(BuildContext *context, ASTNode *function) {
 
     BCValue function_value = string_table_get(&context->functions, function->function_name);
     context->function = (BCFunction) function_value->storage;
+    context->function->is_variadic = function->function_is_variadic;
 
     if (!function->function_body) {
         context->function->is_extern = true;
@@ -776,6 +795,12 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
             constant_value->type = variable_type;
             constant_value->storage = 0;
         }
+        if (string_match(variable->variable_name, str("MU_HASH_INITIAL"))) {
+            constant_value = make(struct SBCValue);
+            constant_value->flags = BC_VALUE_IS_CONSTANT;
+            constant_value->type = variable_type;
+            constant_value->storage = 2166136261;
+        }
 
         string_table_set(&context->globals, variable->variable_name, constant_value);
     } else {
@@ -816,13 +841,15 @@ BuildContext *build_initialize(SemanticContext *sema) {
 bool build_bytecode(BuildContext *context) {
     // Register globals/functions so we can refer to them e.g in a call instruction.
     vector_foreach_ptr(ASTNode, program, context->sema->programs) {
-        vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
-                build_preload_declaration(context, *declaration);
+        vector_foreach_ptr(ASTNode, declaration, (*program)->declarations) {
+            build_preload_declaration(context, *declaration);
+        }
     }
 
     vector_foreach_ptr(ASTNode, program, context->sema->programs) {
-        vector_foreach_ptr(ASTNode, declaration, (*program)->declarations)
-                build_declaration(context, *declaration);
+        vector_foreach_ptr(ASTNode, declaration, (*program)->declarations) {
+            build_declaration(context, *declaration);
+        }
     }
     return true;
 }
