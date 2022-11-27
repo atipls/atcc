@@ -1,4 +1,5 @@
 #include "bytecode.h"
+#include <string.h>
 
 #include "atcc.h"
 #include "ati/utils.h"
@@ -350,3 +351,134 @@ BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCTyp
 
     return insn->regD;
 }
+
+BCBuffer *bc_buffer_create(u64 initial_capacity) {
+    BCBuffer *buffer = make(BCBuffer);
+
+    buffer->data = malloc(initial_capacity);
+    buffer->size = 0;
+    buffer->capacity = initial_capacity;
+
+    return buffer;
+}
+
+void bc_buffer_destroy(BCBuffer *buffer) {
+    free(buffer->data);
+    free(buffer);
+}
+
+// We should grow less linearly, but should be fine for now.
+static void bc_buffer_ensure(BCBuffer *buffer, u64 size) {
+    if (buffer->size + size > buffer->capacity) {
+        buffer->capacity *= 2;
+        buffer->data = realloc(buffer->data, buffer->capacity);
+    }
+}
+
+u64 bc_emit_u8(BCBuffer *buffer, u8 value) {
+    bc_buffer_ensure(buffer, 1);
+
+    buffer->data[buffer->size++] = value;
+
+    return buffer->size - 1;
+}
+
+u64 bc_emit_u16(BCBuffer *buffer, u16 value) {
+    bc_buffer_ensure(buffer, 2);
+
+    value = __builtin_bswap16(value);
+
+    buffer->data[buffer->size++] = (value >> 8) & 0xFF;
+    buffer->data[buffer->size++] = value & 0xFF;
+
+    return buffer->size - 2;
+}
+
+u64 bc_emit_u32(BCBuffer *buffer, u32 value) {
+    bc_buffer_ensure(buffer, 4);
+
+    value = __builtin_bswap32(value);
+
+    buffer->data[buffer->size++] = (value >> 24) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 16) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 8) & 0xFF;
+    buffer->data[buffer->size++] = value & 0xFF;
+
+    return buffer->size - 4;
+}
+
+u64 bc_emit_u64(BCBuffer *buffer, u64 value) {
+    bc_buffer_ensure(buffer, 8);
+
+    value = __builtin_bswap64(value);
+
+    buffer->data[buffer->size++] = (value >> 56) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 48) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 40) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 32) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 24) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 16) & 0xFF;
+    buffer->data[buffer->size++] = (value >> 8) & 0xFF;
+    buffer->data[buffer->size++] = value & 0xFF;
+
+    return buffer->size - 8;
+}
+
+u64 bc_emit_f32(BCBuffer *buffer, f32 value) {
+    return bc_emit_u32(buffer, *(u32 *) &value);
+}
+
+u64 bc_emit_f64(BCBuffer *buffer, f64 value) {
+    return bc_emit_u64(buffer, *(u64 *) &value);
+}
+
+u64 bc_emit_data(BCBuffer *buffer, u8 *data, u64 size) {
+    bc_buffer_ensure(buffer, size);
+
+    memcpy(buffer->data + buffer->size, data, size);
+    buffer->size += size;
+
+    return buffer->size - size;
+}
+
+void bc_patch_u8(BCBuffer *buffer, u64 offset, u8 value) {
+    buffer->data[offset] = value;
+}
+
+void bc_patch_u16(BCBuffer *buffer, u64 offset, u16 value) {
+    value = __builtin_bswap16(value);
+
+    buffer->data[offset + 0] = (value >> 8) & 0xFF;
+    buffer->data[offset + 1] = value & 0xFF;
+}
+
+void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value) {
+    value = __builtin_bswap32(value);
+
+    buffer->data[offset + 0] = (value >> 24) & 0xFF;
+    buffer->data[offset + 1] = (value >> 16) & 0xFF;
+    buffer->data[offset + 2] = (value >> 8) & 0xFF;
+    buffer->data[offset + 3] = value & 0xFF;
+}
+
+void bc_patch_u64(BCBuffer *buffer, u64 offset, u64 value) {
+    value = __builtin_bswap64(value);
+
+    buffer->data[offset + 0] = (value >> 56) & 0xFF;
+    buffer->data[offset + 1] = (value >> 48) & 0xFF;
+    buffer->data[offset + 2] = (value >> 40) & 0xFF;
+    buffer->data[offset + 3] = (value >> 32) & 0xFF;
+    buffer->data[offset + 4] = (value >> 24) & 0xFF;
+    buffer->data[offset + 5] = (value >> 16) & 0xFF;
+    buffer->data[offset + 6] = (value >> 8) & 0xFF;
+    buffer->data[offset + 7] = value & 0xFF;
+}
+
+void bc_patch_f32(BCBuffer *buffer, u64 offset, f32 value) {
+    bc_patch_u32(buffer, offset, *(u32 *) &value);
+}
+
+void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value) {
+    bc_patch_u64(buffer, offset, *(u64 *) &value);
+}
+

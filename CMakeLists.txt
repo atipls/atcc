@@ -17,6 +17,7 @@ add_executable(atcc
         source/ati/utils.h
         source/debug.c
         source/emit/amd64.c
+        source/emit/arm64.c
         source/emit/bcdump.c
         source/emit/bytecode.c
         source/emit/bytecode.h

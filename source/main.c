@@ -63,7 +63,7 @@ UTest utests_main[] = {
 i32 main(i32 argc, cstring argv[]) {
     utest_register(str("main"), utests_main, array_length(utests_main));
 
-    if (argc > 1 && strcmp(argv[1], "utest") == 0) {
+    if (argc > 1 && strcmp(argv[1], "--utest") == 0) {
         utest_run();
         return 0;
     }
@@ -123,6 +123,11 @@ i32 main(i32 argc, cstring argv[]) {
 
     FILE *file = fopen("generated.c", "wb");
     if (!bc_generate_source(build_context->bc, file))
+        fprintf(stderr, "BC Emit failed.\n");
+    fclose(file);
+
+    file = fopen("output.bin", "wb");
+    if (!bc_generate_arm64(build_context->bc, BC_OBJECT_KIND_MACOS, file))
         fprintf(stderr, "BC Emit failed.\n");
     fclose(file);
 

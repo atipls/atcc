@@ -55,3 +55,7 @@ for file in sorted(os.listdir("tests/cases")):
         failed += 1
 
 print(f"Passed: {passed}, Failed: {failed}, Total: {passed + failed}")
+
+subprocess.run(["rm", "-rf", "testexec", "generated.c", "generated.c.DSYM"])
+
+subprocess.run([COMPILER_PATH, "--utest"])

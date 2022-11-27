@@ -203,6 +203,12 @@ struct SBCContext {
     u32 global_size;
 };
 
+typedef enum BCObjectKind {
+    BC_OBJECT_KIND_LINUX,
+    BC_OBJECT_KIND_WINDOWS,
+    BC_OBJECT_KIND_MACOS,
+} BCObjectKind;
+
 BCContext bc_context_initialize();
 
 BCFunction bc_function_create(BCContext context, BCType signature, string name);
@@ -251,6 +257,32 @@ BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCTyp
 
 void bc_dump_function(BCFunction function, FILE *f);
 
-bool bc_generate_amd64(BCContext context, FILE *f);
-bool bc_generate_arm64(BCContext context, FILE *f);
+// Binary codegen helpers
+typedef struct BCBuffer {
+    u8 *data;
+    u64 size;
+    u64 capacity;
+} BCBuffer;
+
+BCBuffer *bc_buffer_create(u64 initial_capacity);
+void bc_buffer_destroy(BCBuffer *buffer);
+
+u64 bc_emit_u8(BCBuffer *buffer, u8 value);
+u64 bc_emit_u16(BCBuffer *buffer, u16 value);
+u64 bc_emit_u32(BCBuffer *buffer, u32 value);
+u64 bc_emit_u64(BCBuffer *buffer, u64 value);
+u64 bc_emit_f32(BCBuffer *buffer, f32 value);
+u64 bc_emit_f64(BCBuffer *buffer, f64 value);
+u64 bc_emit_data(BCBuffer *buffer, u8 *data, u64 size);
+
+void bc_patch_u8(BCBuffer *buffer, u64 offset, u8 value);
+void bc_patch_u16(BCBuffer *buffer, u64 offset, u16 value);
+void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value);
+void bc_patch_u64(BCBuffer *buffer, u64 offset, u64 value);
+void bc_patch_f32(BCBuffer *buffer, u64 offset, f32 value);
+void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
+
+
+bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
+bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_source(BCContext context, FILE *f);

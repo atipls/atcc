@@ -235,8 +235,8 @@ static BCValue build_expression_binary_values(BuildContext *context, TokenKind k
             if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
                 BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
                 BCValue *string_equals_args = null;
-                *vector_add(string_equals_args, 1) = binary_l;
-                *vector_add(string_equals_args, 1) = binary_r;
+                vector_push(string_equals_args, binary_l);
+                vector_push(string_equals_args, binary_r);
 
                 return bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
             }
@@ -247,8 +247,8 @@ static BCValue build_expression_binary_values(BuildContext *context, TokenKind k
             if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
                 BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
                 BCValue *string_equals_args = null;
-                *vector_add(string_equals_args, 1) = binary_l;
-                *vector_add(string_equals_args, 1) = binary_r;
+                vector_push(string_equals_args, binary_l);
+                vector_push(string_equals_args, binary_r);
 
                 BCValue string_equals_result = bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
 
@@ -458,6 +458,8 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
         case AST_EXPRESSION_COMPOUND: return bc_insn_load(context->function, build_expression_lvalue(context, expression));
         default: assert(!"unreachable"); return null;
     }
+
+    return bc_insn_nop(context->function);
 }
 
 static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expression) {
