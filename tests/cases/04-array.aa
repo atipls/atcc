@@ -26,5 +26,8 @@ fun Main(args: string[*]): i32 {
 
     assert(add(stu.bar, stu.baz) == 6, "add(stu.bar, stu.baz) == 6");
 
+    assert("hello0" == "hello0", "Hello isn't hello??");
+    assert("hello1" != "hello2", "Hello1 is hello2??");
+
     return 0;
 }

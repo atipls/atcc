@@ -213,7 +213,8 @@ static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expre
     return last->input;
 }
 
-static BCValue build_expression_binary_values(BuildContext *context, TokenKind kind, BCValue binary_l, BCValue binary_r) {
+static BCValue build_expression_binary_values(BuildContext *context, TokenKind kind, BCValue binary_l, BCValue binary_r,
+                                              Type *type_l, Type *type_r) {
     switch (kind) {
         case TOKEN_PLUS: {
             // TODO: Pointer arithmetic
@@ -229,8 +230,33 @@ static BCValue build_expression_binary_values(BuildContext *context, TokenKind k
         case TOKEN_AMPERSAND: return bc_insn_and(context->function, binary_l, binary_r);
         case TOKEN_CARET: return bc_insn_xor(context->function, binary_l, binary_r);
         case TOKEN_PIPE: return bc_insn_or(context->function, binary_l, binary_r);
-        case TOKEN_EQUAL_EQUAL: return bc_insn_eq(context->function, binary_l, binary_r);
-        case TOKEN_EXCLAMATION_EQUAL: return bc_insn_ne(context->function, binary_l, binary_r);
+        case TOKEN_EQUAL_EQUAL: {
+            // String equal check is performed with a function call to a runtime function.
+            if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
+                BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
+                BCValue *string_equals_args = null;
+                *vector_add(string_equals_args, 1) = binary_l;
+                *vector_add(string_equals_args, 1) = binary_r;
+
+                return bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
+            }
+            return bc_insn_eq(context->function, binary_l, binary_r);
+        }
+        case TOKEN_EXCLAMATION_EQUAL: {
+            // String equal check is performed with a function call to a runtime function.
+            if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
+                BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
+                BCValue *string_equals_args = null;
+                *vector_add(string_equals_args, 1) = binary_l;
+                *vector_add(string_equals_args, 1) = binary_r;
+
+                BCValue string_equals_result = bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
+
+                return bc_insn_not(context->function, string_equals_result, null);
+            }
+
+            return bc_insn_ne(context->function, binary_l, binary_r);
+        }
         case TOKEN_GREATER: return bc_insn_gt(context->function, binary_l, binary_r);
         case TOKEN_GREATER_EQUAL: return bc_insn_ge(context->function, binary_l, binary_r);
         case TOKEN_LESS: return bc_insn_lt(context->function, binary_l, binary_r);
@@ -249,7 +275,9 @@ static BCValue build_expression_binary(BuildContext *context, ASTNode *expressio
     BCValue binary_l = build_expression(context, expression->binary_left);
     BCValue binary_r = build_expression(context, expression->binary_right);
 
-    return build_expression_binary_values(context, expression->binary_operator, binary_l, binary_r);
+    return build_expression_binary_values(context, expression->binary_operator, binary_l, binary_r,
+                                          node_type(expression->binary_left),
+                                          node_type(expression->binary_right));
 }
 
 static BCValue build_expression_ternary(BuildContext *context, ASTNode *expression) {
@@ -712,7 +740,9 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
             BCValue lhs = bc_insn_load(context->function, target);
             BCValue rhs = build_expression(context, statement->assign_value);
 
-            BCValue result = build_expression_binary_values(context, op, lhs, rhs);
+            BCValue result = build_expression_binary_values(context, op, lhs, rhs,
+                                                            node_type(statement->assign_target),
+                                                            node_type(statement->assign_value));
             bc_insn_store(context->function, target, result);
             break;
         }

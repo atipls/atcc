@@ -9,6 +9,9 @@ static SemanticError make_errorv(ASTNode *node, cstring msg, va_list args) {
     string message = make_string(128);
     vsnprintf((char *) message.data, message.length, msg, args);
 
+    fprintf(stderr, "%.*s:%d:%d ", (i32) node->location.file.length, node->location.file.data,
+            node->location.line, node->location.column);
+
     fprintf(stderr, "semantic error: ");
     vfprintf(stderr, msg, args);
     fprintf(stderr, "\n");
@@ -449,6 +452,18 @@ static Type *sema_analyze_expression_binary(SemanticContext *context, ASTNode *e
                 sema_errorf(context, expression->binary_right, "right operand must be arithmetic");
                 return null;
             }
+
+            sema_unify_binary_operands(context, expression->binary_left, expression->binary_right);
+            expression->base_type = left;
+            return left;
+        }
+        case TOKEN_EQUAL_EQUAL:
+        case TOKEN_EXCLAMATION_EQUAL:
+        case TOKEN_COLON_EQUAL:
+        case TOKEN_LESS_EQUAL:
+        case TOKEN_GREATER_EQUAL: {
+            expression->base_type = context->type_i8;
+            return expression->base_type;
         }
         default: {
             sema_unify_binary_operands(context, expression->binary_left, expression->binary_right);
