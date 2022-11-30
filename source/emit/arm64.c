@@ -123,9 +123,7 @@ bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f) {
     for (int i = 0; i < 31; i++) {
         arm64_emit_load64(i, 0x1234567890ABCDEF + i);
     }
-
-    arm64_emit_load64(X0, 0x1234567890ABCDEF);
-
+    
     for (int i = 0; i < 31; i++) {
         for (int j = 0; j < 31; j++) {
             arm64_emit_mov64(i, j);
