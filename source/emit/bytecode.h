@@ -203,12 +203,6 @@ struct SBCContext {
     u32 global_size;
 };
 
-typedef enum BCObjectKind {
-    BC_OBJECT_KIND_LINUX,
-    BC_OBJECT_KIND_WINDOWS,
-    BC_OBJECT_KIND_MACOS,
-} BCObjectKind;
-
 BCContext bc_context_initialize();
 
 BCFunction bc_function_create(BCContext context, BCType signature, string name);
@@ -256,6 +250,25 @@ BCValue bc_insn_return(BCFunction function, BCValue value);
 BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCType target);
 
 void bc_dump_function(BCFunction function, FILE *f);
+
+typedef enum BCObjectKind {
+    BC_OBJECT_KIND_LINUX,
+    BC_OBJECT_KIND_WINDOWS,
+    BC_OBJECT_KIND_MACOS,
+} BCObjectKind;
+
+typedef struct BCSection {
+    string name;
+    u8 *data;
+    u64 size;
+} BCSection;
+
+typedef struct BCObject {
+    BCObjectKind kind;
+    BCSection *sections;
+    u32 num_sections;
+    void *platform;
+} BCObject;
 
 // Binary codegen helpers
 typedef struct BCBuffer {
