@@ -9,6 +9,8 @@ fun strlen(str: i8*): i32;
 fun malloc(size: i32): i8*;
 fun memcmp(v1: void*, v2: void*, len: u32): i32;
 
+fun printf(fmt: i8*, a: i32): i32;
+
 fun __atcc_string_equals(a: string, b: string): i32 {
     if (a.length != b.length) return 0;
 

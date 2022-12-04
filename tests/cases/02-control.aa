@@ -35,6 +35,45 @@ fun Main(args: string[*]): i32 {
             assert(false, "This should never happen");
     }
 
+    switch ("world") {
+        case "hello":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "world":
+            accumulator += 1;
+            assert(true, "This should happen");
+        default:
+            accumulator += 1;
+            assert(false, "This should never default");
+    }
+
+    switch ("balls gaming") {
+        case "balls":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "gaming":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "balls gaming":
+            accumulator += 1;
+            assert(true, "This should happen");
+        default:
+            accumulator += 1;
+            assert(false, "This should never default");
+    }
+
+    switch ("sadkjhfgsadkljdgf") {
+        case "hello":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "world":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        default:
+            accumulator += 1;
+            assert(true, "This should happen");
+    }
+
     if (1 != 1) {
         accumulator += 1;
         assert(false, "This should never happen");
@@ -46,7 +85,9 @@ fun Main(args: string[*]): i32 {
         assert(false, "This should never happen");
     }
 
-    assert(accumulator == 13, "Expected 13 as the accumulator value");
+    printf("accumulator: %d\n".data, accumulator);
+
+    assert(accumulator == 16, "Expected 16 as the accumulator value");
 
     return 0;
 }

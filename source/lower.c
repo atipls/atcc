@@ -137,6 +137,14 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression);
 static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expression);
 static void build_statement(BuildContext *context, ASTNode *statement);
 
+static BCValue build_string_equals(BuildContext *context, BCValue left, BCValue right) {
+    BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
+    BCValue *string_equals_args = make_n(BCValue, 2);
+    string_equals_args[0] = left;
+    string_equals_args[1] = right;
+    return bc_insn_call(context->function, string_equals, string_equals_args, 2);
+}
+
 static BCValue build_expression_unary(BuildContext *context, ASTNode *expression) {
     if (expression->unary_operator == TOKEN_AMPERSAND)
         return build_expression_lvalue(context, expression->unary_target);
@@ -232,27 +240,15 @@ static BCValue build_expression_binary_values(BuildContext *context, TokenKind k
         case TOKEN_PIPE: return bc_insn_or(context->function, binary_l, binary_r);
         case TOKEN_EQUAL_EQUAL: {
             // String equal check is performed with a function call to a runtime function.
-            if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
-                BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
-                BCValue *string_equals_args = null;
-                vector_push(string_equals_args, binary_l);
-                vector_push(string_equals_args, binary_r);
-
-                return bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
-            }
+            if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING)
+                return build_string_equals(context, binary_l, binary_r);
             return bc_insn_eq(context->function, binary_l, binary_r);
         }
         case TOKEN_EXCLAMATION_EQUAL: {
             // String equal check is performed with a function call to a runtime function.
             if (type_l->kind == TYPE_STRING || type_r->kind == TYPE_STRING) {
-                BCValue string_equals = string_table_get(&context->functions, str("__atcc_string_equals"));
-                BCValue *string_equals_args = null;
-                vector_push(string_equals_args, binary_l);
-                vector_push(string_equals_args, binary_r);
-
-                BCValue string_equals_result = bc_insn_call(context->function, string_equals, string_equals_args, vector_len(string_equals_args));
-
-                return bc_insn_not(context->function, string_equals_result, null);
+                BCValue equals = build_string_equals(context, binary_l, binary_r);
+                return bc_insn_not(context->function, equals, null);
             }
 
             return bc_insn_ne(context->function, binary_l, binary_r);
@@ -700,10 +696,58 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
     context->break_target = last;
 
     BCValue condition = build_expression(context, statement->switch_expression);
+    BCBlock default_block = null;
+    ASTNode *default_case = null;
 
     vector_foreach_ptr(ASTNode, switch_case_ptr, statement->switch_cases) {
         ASTNode *switch_case = *switch_case_ptr;
+
+        BCBlock case_block = bc_block_make(context->function);
+        if (switch_case->switch_case_is_default) {
+            default_block = case_block;
+            default_case = switch_case;
+            continue;
+        }
+
+        vector_foreach_ptr(ASTNode, case_pattern_ptr, switch_case->switch_case_patterns) {
+            ASTNode *case_pattern = *case_pattern_ptr;
+
+            if (case_pattern->switch_pattern_end != null) {
+                BCValue greater = bc_insn_ge(context->function, condition, build_expression(context, case_pattern->switch_pattern_start));
+                BCValue less = bc_insn_le(context->function, condition, build_expression(context, case_pattern->switch_pattern_end));
+                BCValue comparison = bc_insn_and(context->function, greater, less);
+                BCBlock target = default_block ? default_block : last;
+                bc_insn_jump_if(context->function, comparison, case_block, target);
+            } else {
+                if (node_type(statement->switch_expression)->kind == TYPE_STRING) {
+                    BCValue pattern = build_expression(context, case_pattern->switch_pattern_start);
+                    BCValue comparison = build_string_equals(context, condition, pattern);
+                    BCBlock target = default_block ? default_block : last;
+                    bc_insn_jump_if(context->function, comparison, case_block, target);
+                } else {
+                    BCValue pattern = build_expression(context, case_pattern->switch_pattern_start);
+                    BCValue comparison = bc_insn_eq(context->function, condition, pattern);
+                    BCBlock target = default_block ? default_block : last;
+                    bc_insn_jump_if(context->function, comparison, case_block, target);
+                }
+            }
+        }
+
+        bc_function_set_block(context->function, case_block);
+        build_statement(context, switch_case->switch_case_body);
+        if (!bc_block_is_terminated(bc_function_get_block(context->function)))
+            bc_insn_jump(context->function, last);
     }
+
+    if (default_block) {
+        bc_function_set_block(context->function, default_block);
+        build_statement(context, default_case->switch_case_body);
+        if (!bc_block_is_terminated(bc_function_get_block(context->function)))
+            bc_insn_jump(context->function, last);
+    }
+
+    bc_function_set_block(context->function, last);
+    context->break_target = old_break_target;
 }
 
 static void build_statement(BuildContext *context, ASTNode *statement) {
