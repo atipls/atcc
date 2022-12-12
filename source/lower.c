@@ -696,18 +696,14 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
     context->break_target = last;
 
     BCValue condition = build_expression(context, statement->switch_expression);
-    BCBlock default_block = null;
-    ASTNode *default_case = null;
 
     vector_foreach_ptr(ASTNode, switch_case_ptr, statement->switch_cases) {
         ASTNode *switch_case = *switch_case_ptr;
 
         BCBlock case_block = bc_block_make(context->function);
-        if (switch_case->switch_case_is_default) {
-            default_block = case_block;
-            default_case = switch_case;
-            continue;
-        }
+        BCBlock next_block = bc_block_make(context->function);
+
+        BCValue comparison = null;
 
         vector_foreach_ptr(ASTNode, case_pattern_ptr, switch_case->switch_case_patterns) {
             ASTNode *case_pattern = *case_pattern_ptr;
@@ -715,36 +711,34 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
             if (case_pattern->switch_pattern_end != null) {
                 BCValue greater = bc_insn_ge(context->function, condition, build_expression(context, case_pattern->switch_pattern_start));
                 BCValue less = bc_insn_le(context->function, condition, build_expression(context, case_pattern->switch_pattern_end));
-                BCValue comparison = bc_insn_and(context->function, greater, less);
-                BCBlock target = default_block ? default_block : last;
-                bc_insn_jump_if(context->function, comparison, case_block, target);
+                BCValue value = bc_insn_and(context->function, greater, less);
+                comparison = comparison ? bc_insn_or(context->function, comparison, value) : value;
             } else {
                 if (node_type(statement->switch_expression)->kind == TYPE_STRING) {
                     BCValue pattern = build_expression(context, case_pattern->switch_pattern_start);
-                    BCValue comparison = build_string_equals(context, condition, pattern);
-                    BCBlock target = default_block ? default_block : last;
-                    bc_insn_jump_if(context->function, comparison, case_block, target);
+                    BCValue value = build_string_equals(context, condition, pattern);
+                    comparison = comparison ? bc_insn_or(context->function, comparison, value) : value;
                 } else {
                     BCValue pattern = build_expression(context, case_pattern->switch_pattern_start);
-                    BCValue comparison = bc_insn_eq(context->function, condition, pattern);
-                    BCBlock target = default_block ? default_block : last;
-                    bc_insn_jump_if(context->function, comparison, case_block, target);
+                    BCValue value = bc_insn_eq(context->function, condition, pattern);
+                    comparison = comparison ? bc_insn_or(context->function, comparison, value) : value;
                 }
             }
         }
+
+        if (comparison) // Default case
+            bc_insn_jump_if(context->function, comparison, case_block, next_block);
+        else
+            bc_insn_jump(context->function, case_block);
 
         bc_function_set_block(context->function, case_block);
         build_statement(context, switch_case->switch_case_body);
         if (!bc_block_is_terminated(bc_function_get_block(context->function)))
             bc_insn_jump(context->function, last);
+
+        bc_function_set_block(context->function, next_block);
     }
 
-    if (default_block) {
-        bc_function_set_block(context->function, default_block);
-        build_statement(context, default_case->switch_case_body);
-        if (!bc_block_is_terminated(bc_function_get_block(context->function)))
-            bc_insn_jump(context->function, last);
-    }
 
     bc_function_set_block(context->function, last);
     context->break_target = old_break_target;
@@ -915,7 +909,7 @@ BuildContext *build_initialize(SemanticContext *sema) {
 }
 
 bool build_bytecode(BuildContext *context) {
-    // Register globals/functions so we can refer to them e.g in a call instruction.
+    // Register globals/functions, so we can refer to them e.g in a call instruction.
     vector_foreach_ptr(ASTNode, program, context->sema->programs) {
         vector_foreach_ptr(ASTNode, declaration, (*program)->declarations) {
             build_preload_declaration(context, *declaration);

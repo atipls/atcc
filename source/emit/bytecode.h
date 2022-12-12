@@ -70,7 +70,7 @@ struct SBCType {
         struct {
             BCAggregate *members;
             u32 num_members;
-            string name;
+            string  name;
         };
 
         struct {

@@ -80,8 +80,6 @@ fun Test81(): i8 {
 	return 8 / 2 * (2 + 2);
 }
 
-fun printf(fmt: string, ..): i32;
-
 struct TestStruct {
 	first: i32;
 	second: i32;
@@ -230,7 +228,7 @@ fun Main(args: string[*]): i32 {
 	aaa.third = 80.0;
 	ptrToA.second = 442;
 
-  offset := &(cast(TestStruct *)0).third;
+    offset := &(cast(TestStruct *)0).third;
 	printf("Offset is %d\n".data, offset);
 
 	troll: u8 = 170;
@@ -256,5 +254,5 @@ fun Main(args: string[*]): i32 {
 	printf("ptrToA = %p\n".data, ptrToA);
 	printf("nextA = %p\n".data, nextA);
 	printf("10+20 = %d\n".data, 10);
-  return 1;
+    return 1;
 }
