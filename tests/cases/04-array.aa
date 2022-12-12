@@ -7,9 +7,15 @@ fun add(a: i32[1], b: i32[1]): i32 {
     return a[0] + b[0];
 }
 
+var globalString := "Hello, World!";
+
 fun Main(args: string[*]): i32 {
     foo: i32[1] = { 2 };
     bar: i32[1] = { 4 };
+
+    assert(globalString == "Hello, World!", "Global string is not equal to 'Hello, World!'");
+    assert(globalString.length == 13, "Global string length is not 13");
+
 
     assert(foo.length == 1, "foo.length == 1");
     assert(bar.length == 1, "bar.length == 1");

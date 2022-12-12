@@ -726,7 +726,7 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
             }
         }
 
-        if (comparison) // Default case
+        if (comparison)// Default case
             bc_insn_jump_if(context->function, comparison, case_block, next_block);
         else
             bc_insn_jump(context->function, case_block);
@@ -818,6 +818,19 @@ static void build_function(BuildContext *context, ASTNode *function) {
 }
 
 static void build_variable(BuildContext *context, ASTNode *variable) {
+    BCValue global = string_table_get(&context->globals, variable->variable_name);
+
+    if (variable->variable_is_const)
+        return;
+
+    if (variable->variable_initializer) {
+        context->function = context->initializer;
+
+        BCValue initializer = build_expression(context, variable->variable_initializer);
+        bc_insn_store(context->function, global, initializer);
+
+        context->function = null;
+    }
 }
 
 static void build_declaration(BuildContext *context, ASTNode *declaration) {
