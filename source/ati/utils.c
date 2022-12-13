@@ -45,3 +45,54 @@ bool write_file(string path, Buffer *buffer) {
 
     return true;
 }
+
+void variant_print(Variant variant) {
+    switch (variant.kind) {
+        case VARIANT_NONE:
+            printf("none");
+            break;
+        case VARIANT_I8:
+            printf("%d", variant.i8);
+            break;
+        case VARIANT_U8:
+            printf("%u", variant.u8);
+            break;
+        case VARIANT_I16:
+            printf("%d", variant.i16);
+            break;
+        case VARIANT_U16:
+            printf("%u", variant.u16);
+            break;
+        case VARIANT_I32:
+            printf("%d", variant.i32);
+            break;
+        case VARIANT_U32:
+            printf("%u", variant.u32);
+            break;
+        case VARIANT_I64:
+            printf("%lld", variant.i64);
+            break;
+        case VARIANT_U64:
+            printf("%llu", variant.u64);
+            break;
+        case VARIANT_F32:
+            printf("%f", variant.f32);
+            break;
+        case VARIANT_F64:
+            printf("%f", variant.f64);
+            break;
+        case VARIANT_STRING:
+            printf("%.*s", (int) variant.string.length, variant.string.data);
+            break;
+        case VARIANT_ARRAY: {
+            printf("[");
+            for (int i = 0; i < variant.array.length; i++) {
+                variant_print(variant.array.data[i]);
+                if (i != variant.array.length - 1)
+                    printf(", ");
+            }
+            printf("]");
+            break;
+        }
+    }
+}

@@ -79,9 +79,7 @@ static bool parser_is_cmp(Parser *parser) {
            parser->current->kind == TOKEN_GREATER ||
            parser->current->kind == TOKEN_GREATER_EQUAL ||
            parser->current->kind == TOKEN_LESS ||
-           parser->current->kind == TOKEN_LESS_EQUAL ||
-           parser->current->kind == TOKEN_AMPERSAND_AMPERSAND ||
-           parser->current->kind == TOKEN_PIPE_PIPE;
+           parser->current->kind == TOKEN_LESS_EQUAL;
 }
 
 static bool parser_is_assign(Parser *parser) {
@@ -851,6 +849,8 @@ static ASTNode *parse_declaration_function(Parser *parser) {
     node->function_parameters = parameters;
     node->function_return_type = return_type;
     node->function_body = parser_consume(parser, TOKEN_SEMICOLON) ? null : parse_statement_block(parser);
+    node->function_is_variadic = is_variadic;
+
     return node;
 }
 

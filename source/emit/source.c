@@ -93,7 +93,7 @@ static void bc_generate_value(BCValue value, FILE *f) {
             if (length > 0)
                 length--;
 
-            fprintf(f, "){.length = %llu, .data = (i8*)", length);
+            fprintf(f, "){.length = %llu, .data = (u8*)", length);
             fprintf(f, "\"%.*s\"})", strp(value->string));
         }
 
@@ -403,7 +403,7 @@ bool bc_generate_source(BCContext context, FILE *f) {
     }
 
     fprintf(f, "int main(int argc, char **argv) {\n"
-               "    return __atcc_start((i32)argc, (i8**)argv);\n"
+               "    return __atcc_start((i32)argc, (u8**)argv);\n"
                "}\n");
 
     return false;

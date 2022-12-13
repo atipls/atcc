@@ -4,13 +4,15 @@
 /* This is a comment.
    This is a comment. */
 
-/* /* This is a comment. */ */
+/* /* This is a comment. */ var x { */
 
 fun Main(args: string[*]): i32 {
+    printf("Hello, World! %d\n".data, 14);
+    i := 1;
     assert(true, "This is a test");
 
     for (i := 0; i < args.length; i += 1) {
-        puts(args[i].data);
+        print(args[i]);
     }
 
     return 0;

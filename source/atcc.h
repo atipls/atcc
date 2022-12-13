@@ -8,9 +8,9 @@
 #include <assert.h>
 
 #ifdef NDEBUG
-    #define debug if (false)
+#define debug if (false)
 #else
-    #define debug if (true)
+#define debug if (true)
 #endif
 
 typedef struct {
@@ -305,6 +305,7 @@ struct ASTNode {
             TokenFlag literal_flags;
             union {
                 u64 literal_as_u64;
+                i64 literal_as_i64;
                 f64 literal_as_f64;
             };
         };
@@ -421,6 +422,8 @@ bool type_is_scalar(Type *type);
 bool type_is_arithmetic(Type *type);
 
 Type *node_type(ASTNode *node);
+
+Variant eval_expression(ASTNode *node);
 
 typedef enum {
     SEMA_ENTRY_NONE,

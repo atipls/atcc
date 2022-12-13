@@ -28,6 +28,7 @@ add_executable(atcc
         source/parser.c
         source/sema.c
         source/type.c
+        source/eval.c
         source/emit/tests.c source/ati/tests.c)
 
 target_include_directories(atcc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source)

@@ -138,7 +138,7 @@ Token *lexer_tokenize(string filename, Buffer data) {
     lexer.column = 1;
 
     while (lexer_peek(&lexer) != 0) {
-        while (isspace(lexer_peek(&lexer)))
+        while (isspace(lexer_peek(&lexer)) || lexer_peek(&lexer) == -62 || lexer_peek(&lexer) == -96)
             lexer_read(&lexer);
 
         Token *current = vector_add(lexer.buffer, 1);
@@ -274,7 +274,7 @@ Token *lexer_tokenize(string filename, Buffer data) {
                 break;
             }
             default:
-                printf("Character: '%c'\n", character);
+                printf("Character: '%c' (%u)\n", character, (u8)character);
                 break;
         }
     }

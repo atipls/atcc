@@ -186,14 +186,14 @@ static BCValue build_expression_logical_and(BuildContext *context, ASTNode *expr
     bc_insn_jump(context->function, last)->regC = c1;
 
     bc_function_set_block(context->function, last);
-    last->input = bc_value_make(context->function, bc_type_u32);
+    last->input = bc_value_make(context->function, bc_type_i32);
 
     return last->input;
 }
 
 static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expression) {
-    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
-    BCValue c1 = bc_value_make_consti(bc_type_u32, 1);
+    BCValue c0 = bc_value_make_consti(bc_type_i32, 0);
+    BCValue c1 = bc_value_make_consti(bc_type_i32, 1);
 
     BCBlock eval_right = bc_block_make(context->function);
     BCBlock set0 = bc_block_make(context->function);
@@ -493,10 +493,10 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             if (type->kind == TYPE_POINTER) {
                 target = build_expression(context, expression->field_target);
                 type = type->base_type;
-            } else if (type->kind == TYPE_AGGREGATE)
-                target = build_expression_lvalue(context, expression->field_target);
-            else
+            } else if (type->kind == TYPE_STRING)
                 target = build_expression(context, expression->field_target);
+            else
+                target = build_expression_lvalue(context, expression->field_target);
 
             assert(type->kind == TYPE_AGGREGATE || type->kind == TYPE_STRING || type->kind == TYPE_ARRAY);
 
@@ -541,15 +541,17 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
 
             // For arrays and strings, we need to get the data pointer.
             if (type->kind != TYPE_POINTER) {
-                BCType field_type = type->kind == TYPE_ARRAY
-                                            ? bc_type_pointer(build_convert_type(context, type->array_base))
-                                            : bc_type_pointer(bc_type_u8);
-                target = bc_insn_get_field(context->function, target, field_type, 1);
-            }
+                BCType element_type = type->kind == TYPE_ARRAY ? build_convert_type(context, type->array_base) : bc_type_u8;
+                BCType field_type = bc_type_pointer(element_type);
 
-            BCType element_type = build_convert_type(context, type->base_type);
-            return bc_insn_get_index(context->function, target, element_type, index);
+                target = bc_insn_get_field(context->function, target, field_type, 1);
+                return bc_insn_get_index(context->function, target, element_type, index);
+            } else {
+                BCType element_type = build_convert_type(context, type->base_type);
+                return bc_insn_get_index(context->function, target, element_type, index);
+            }
         }
+
         case AST_EXPRESSION_COMPOUND: return build_expression_compound(context, expression);
         default: assert(!"unreachable"); return null;
     }
@@ -856,6 +858,7 @@ static void build_preload_function(BuildContext *context, ASTNode *function) {
     bc_function_value->flags = BC_VALUE_IS_FUNCTION;
     bc_function_value->type = function_type;
     bc_function_value->storage = (u64) bc_function;
+    bc_function->is_variadic = function->function_is_variadic;
 
     string_table_set(&context->functions, function->function_name, bc_function_value);
 }
@@ -864,26 +867,16 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
     BCType variable_type = build_convert_type(context, node_type(variable));
     if (variable->variable_is_const) {
 
-        // HACK HACK: Hardcoded true and false, lol.
-        BCValue constant_value = null;
-        if (string_match(variable->variable_name, str("true"))) {
-            constant_value = make(struct SBCValue);
-            constant_value->flags = BC_VALUE_IS_CONSTANT;
-            constant_value->type = variable_type;
-            constant_value->storage = 1;
-        }
-        if (string_match(variable->variable_name, str("false"))) {
-            constant_value = make(struct SBCValue);
-            constant_value->flags = BC_VALUE_IS_CONSTANT;
-            constant_value->type = variable_type;
-            constant_value->storage = 0;
-        }
-        if (string_match(variable->variable_name, str("MU_HASH_INITIAL"))) {
-            constant_value = make(struct SBCValue);
-            constant_value->flags = BC_VALUE_IS_CONSTANT;
-            constant_value->type = variable_type;
-            constant_value->storage = 2166136261;
-        }
+        Variant value = eval_expression(variable->variable_initializer);
+
+        printf("const %.*s = ", strp(variable->variable_name));
+        variant_print(value);
+        printf("\n");
+
+        BCValue constant_value = make(struct SBCValue);
+        constant_value->flags = BC_VALUE_IS_CONSTANT;
+        constant_value->type = variable_type;
+        constant_value->storage = value.u64; // TODO: This is not correct for all types.
 
         string_table_set(&context->globals, variable->variable_name, constant_value);
     } else {

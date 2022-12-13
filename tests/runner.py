@@ -38,7 +38,7 @@ def run_a_test(path):
     if not run_test_stage(path, "COMP", ["gcc", "-O3", "-g", *DISABLED_WARNINGS, "-o", "testexec", "generated.c"]):
         return False
 
-    if not run_test_stage(path, "EXEC", ["./testexec"]):
+    if not run_test_stage(path, "EXEC", ["./testexec", "test1", "test2", "test3", "test4", "test5"]):
         return False
 
     print(f"PASS: {path}")
