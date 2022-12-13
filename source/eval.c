@@ -13,28 +13,78 @@ static Variant eval_unary(ASTNode *node) {
     }
 }
 
-static Variant eval_binary(ASTNode *node) {
-    Variant left = eval_expression(node->binary_left);
-    Variant right = eval_expression(node->binary_right);
+#define make_eval_binary(T)                                                      \
+    static Variant eval_binary_##T(ASTNode *node) {                              \
+        Variant left = eval_expression(node->binary_left);                       \
+        Variant right = eval_expression(node->binary_right);                     \
+                                                                                 \
+        switch (node->binary_operator) {                                         \
+            case TOKEN_PLUS: return variant_##T(left.T + right.T);               \
+            case TOKEN_MINUS: return variant_##T(left.T - right.T);              \
+            case TOKEN_STAR: return variant_##T(left.T * right.T);               \
+            case TOKEN_SLASH: return variant_##T(left.T / right.T);              \
+            case TOKEN_PERCENT: return variant_##T(left.T % right.T);            \
+            case TOKEN_AMPERSAND: return variant_##T(left.T & right.T);          \
+            case TOKEN_PIPE: return variant_##T(left.T | right.T);               \
+            case TOKEN_CARET: return variant_##T(left.T ^ right.T);              \
+            case TOKEN_EQUAL_EQUAL: return variant_##T(left.T == right.T);       \
+            case TOKEN_EXCLAMATION_EQUAL: return variant_##T(left.T != right.T); \
+            case TOKEN_LESS: return variant_##T(left.T < right.T);               \
+            case TOKEN_LESS_EQUAL: return variant_##T(left.T <= right.T);        \
+            case TOKEN_GREATER: return variant_##T(left.T > right.T);            \
+            case TOKEN_GREATER_EQUAL: return variant_##T(left.T >= right.T);     \
+            case TOKEN_LEFT_SHIFT: return variant_##T(left.T << right.T);        \
+            case TOKEN_RIGHT_SHIFT: return variant_##T(left.T >> right.T);       \
+                                                                                 \
+            default: assert(!"unreachable"); return variant_none();              \
+        }                                                                        \
+    }
 
-    switch (node->binary_operator) {
-        case TOKEN_PLUS: return variant_i32(left.i32 + right.i32);
-        case TOKEN_MINUS: return variant_i32(left.i32 - right.i32);
-        case TOKEN_STAR: return variant_i32(left.i32 * right.i32);
-        case TOKEN_SLASH: return variant_i32(left.i32 / right.i32);
-        case TOKEN_PERCENT: return variant_i32(left.i32 % right.i32);
-        case TOKEN_AMPERSAND: return variant_i32(left.i32 & right.i32);
-        case TOKEN_PIPE: return variant_i32(left.i32 | right.i32);
-        case TOKEN_CARET: return variant_i32(left.i32 ^ right.i32);
-        case TOKEN_LEFT_SHIFT: return variant_i32(left.i32 << right.i32);
-        case TOKEN_RIGHT_SHIFT: return variant_i32(left.i32 >> right.i32);
-        case TOKEN_EQUAL_EQUAL: return variant_i32(left.i32 == right.i32);
-        case TOKEN_EXCLAMATION_EQUAL: return variant_i32(left.i32 != right.i32);
-        case TOKEN_LESS: return variant_i32(left.i32 < right.i32);
-        case TOKEN_LESS_EQUAL: return variant_i32(left.i32 <= right.i32);
-        case TOKEN_GREATER: return variant_i32(left.i32 > right.i32);
-        case TOKEN_GREATER_EQUAL: return variant_i32(left.i32 >= right.i32);
-        default: assert(!"unreachable"); return variant_i32(0);
+
+#define make_eval_binary_float(T)                                                \
+    static Variant eval_binary_##T(ASTNode *node) {                              \
+        Variant left = eval_expression(node->binary_left);                       \
+        Variant right = eval_expression(node->binary_right);                     \
+                                                                                 \
+        switch (node->binary_operator) {                                         \
+            case TOKEN_PLUS: return variant_##T(left.T + right.T);               \
+            case TOKEN_MINUS: return variant_##T(left.T - right.T);              \
+            case TOKEN_STAR: return variant_##T(left.T * right.T);               \
+            case TOKEN_SLASH: return variant_##T(left.T / right.T);              \
+            case TOKEN_EQUAL_EQUAL: return variant_##T(left.T == right.T);       \
+            case TOKEN_EXCLAMATION_EQUAL: return variant_##T(left.T != right.T); \
+            case TOKEN_LESS: return variant_##T(left.T < right.T);               \
+            case TOKEN_LESS_EQUAL: return variant_##T(left.T <= right.T);        \
+            case TOKEN_GREATER: return variant_##T(left.T > right.T);            \
+            case TOKEN_GREATER_EQUAL: return variant_##T(left.T >= right.T);     \
+            default: assert(!"unreachable"); return variant_none();              \
+        }                                                                        \
+    }
+
+make_eval_binary(u8);
+make_eval_binary(i8);
+make_eval_binary(u16);
+make_eval_binary(i16);
+make_eval_binary(u32);
+make_eval_binary(i32);
+make_eval_binary(u64);
+make_eval_binary(i64);
+make_eval_binary_float(f32);
+make_eval_binary_float(f64);
+
+static Variant eval_binary(ASTNode *node) {
+    switch (node_type(node)->kind) {
+        case TYPE_U8: return eval_binary_u8(node);
+        case TYPE_I8: return eval_binary_i8(node);
+        case TYPE_U16: return eval_binary_u16(node);
+        case TYPE_I16: return eval_binary_i16(node);
+        case TYPE_U32: return eval_binary_u32(node);
+        case TYPE_I32: return eval_binary_i32(node);
+        case TYPE_U64: return eval_binary_u64(node);
+        case TYPE_I64: return eval_binary_i64(node);
+        case TYPE_F32: return eval_binary_f32(node);
+        case TYPE_F64: return eval_binary_f64(node);
+        default: assert(!"unreachable"); return variant_none();
     }
 }
 
