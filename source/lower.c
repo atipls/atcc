@@ -545,6 +545,7 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
                 BCType field_type = bc_type_pointer(element_type);
 
                 target = bc_insn_get_field(context->function, target, field_type, 1);
+                target = bc_insn_load(context->function, target);
                 return bc_insn_get_index(context->function, target, element_type, index);
             } else {
                 BCType element_type = build_convert_type(context, type->base_type);

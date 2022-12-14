@@ -110,7 +110,7 @@ static Variant eval_literal(ASTNode *node) {
         case TYPE_F32: return variant_f32((f32) node->literal_as_f64);
         case TYPE_F64: return variant_f64((f64) node->literal_as_f64);
         case TYPE_STRING: return variant_string(node->literal_value.data, node->literal_value.length);
-        case TYPE_ARRAY: assert(!"unimplemented"); return variant_none();
+        case TYPE_ARRAY:
         default: assert(!"unimplemented"); return variant_none();
     }
 }
@@ -134,6 +134,7 @@ static Variant eval_cast(ASTNode *node) {
 }
 
 Variant eval_expression(ASTNode *node) {
+
     switch (node->kind) {
         case AST_EXPRESSION_PAREN: return eval_expression(node->parent);
         case AST_EXPRESSION_UNARY: return eval_unary(node);
