@@ -545,6 +545,10 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
                 BCType field_type = bc_type_pointer(element_type);
 
                 target = bc_insn_get_field(context->function, target, field_type, 1);
+
+                if (type->kind == TYPE_ARRAY && type->array_size && !type->array_is_dynamic)
+                    return bc_insn_get_index(context->function, target, build_convert_type(context, type->base_type), index);
+
                 target = bc_insn_load(context->function, target);
                 return bc_insn_get_index(context->function, target, element_type, index);
             } else {
