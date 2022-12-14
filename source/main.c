@@ -126,10 +126,12 @@ i32 main(i32 argc, cstring argv[]) {
         fprintf(stderr, "BC Emit failed.\n");
     fclose(file);
 
+#if 0
     file = fopen("output.bin", "wb");
     if (!bc_generate_arm64(build_context->bc, BC_OBJECT_KIND_MACOS, file))
         fprintf(stderr, "BC Emit failed.\n");
     fclose(file);
+#endif
 
     return 0;
 }
