@@ -24,6 +24,7 @@ struct SBCValue {
     BCType type;
     union {
         u64 storage;
+        i64 istorage;
         f64 floating;
         string string;
     };

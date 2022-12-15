@@ -37,8 +37,10 @@ void utest_register(string name, UTest *tests, u32 count) {
 }
 
 void utest_run() {
-    signal(SIGSEGV, utest_signal_handler);
-    signal(SIGABRT, utest_signal_handler);
+    sig_t old_sigsegv, old_sigabrt;
+
+    old_sigsegv = signal(SIGSEGV, utest_signal_handler);
+    old_sigabrt = signal(SIGABRT, utest_signal_handler);
 
     i32 test_pass = 0, test_fail = 0;
 
@@ -60,4 +62,7 @@ void utest_run() {
     }
 
     printf("[UTEST] \033[32m%d\033[0m passed, \033[31m%d\033[0m failed.\n", test_pass, test_fail);
+
+    signal(SIGSEGV, old_sigsegv);
+    signal(SIGABRT, old_sigabrt);
 }

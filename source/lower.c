@@ -869,7 +869,9 @@ static void build_preload_function(BuildContext *context, ASTNode *function) {
 }
 
 static void build_preload_variable(BuildContext *context, ASTNode *variable) {
-    BCType variable_type = build_convert_type(context, node_type(variable));
+    Type *type = node_type(variable);
+    BCType variable_type = build_convert_type(context, type);
+
     if (variable->variable_is_const) {
 
         Variant value = eval_expression(variable->variable_initializer);
@@ -881,7 +883,23 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
         BCValue constant_value = make(struct SBCValue);
         constant_value->flags = BC_VALUE_IS_CONSTANT;
         constant_value->type = variable_type;
-        constant_value->storage = value.u64; // TODO: This is not correct for all types.
+
+        switch (type->kind) {
+            case TYPE_I8: constant_value->istorage = value.i8; break;
+            case TYPE_U8: constant_value->storage = value.u8; break;
+            case TYPE_I16: constant_value->istorage = value.i16; break;
+            case TYPE_U16: constant_value->storage = value.u16; break;
+            case TYPE_I32: constant_value->istorage = value.i32; break;
+            case TYPE_U32: constant_value->storage = value.u32; break;
+            case TYPE_I64: constant_value->istorage = value.i64; break;
+            case TYPE_U64: constant_value->storage = value.u64; break;
+            case TYPE_F32: constant_value->floating = value.f32; break;
+            case TYPE_F64: constant_value->floating = value.f64; break;
+            case TYPE_STRING: constant_value->string = rawstr(value.string.data, value.string.length); break;
+            default: assert(!"unimplemented");
+        }
+
+        constant_value->storage = value.u64;// TODO: This is not correct for all types.
 
         string_table_set(&context->globals, variable->variable_name, constant_value);
     } else {

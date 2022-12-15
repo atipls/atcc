@@ -83,15 +83,12 @@ static void bc_dump_value(BCValue value, FILE *f) {
             bc_dump_type(value->type, f);
             fprintf(f, "]");
         } else if (value->type->is_floating) {
-            if (value->type == bc_type_f32)
-                fprintf(f, "%f", bitcast(u32, f32, (u32) value->storage));
-            else
-                fprintf(f, "%f", bitcast(u64, f64, value->storage));
+            fprintf(f, "%f", value->floating);
         } else if (value->type->is_signed) {
             if (value->type->size > 4) {
-                fprintf(f, "%lld", bitcast(u64, i64, value->storage));
+                fprintf(f, "%lld", value->istorage);
             } else {
-                fprintf(f, "%d", bitcast(u32, i32, (u32) value->storage));
+                fprintf(f, "%d", (i32)value->istorage);
             }
         } else {
             fprintf(f, "%llx", value->storage);

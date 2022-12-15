@@ -1,3 +1,4 @@
+
 fun Main(args: string[*]): i32 {
     assert("Hello, World!".length == 13, "Uh oh, something is wrong with the string length");
 

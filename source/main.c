@@ -45,7 +45,9 @@ int utest_test_1() {
 }
 
 int utest_test_2() {
-    return UTEST_FAIL;
+    UASSERT(1 == 2);
+
+    return UTEST_PASS;
 }
 
 int utest_test_3() {

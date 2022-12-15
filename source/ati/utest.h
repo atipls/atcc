@@ -3,7 +3,7 @@
 #include "basic.h"
 #include "string.h"
 
-typedef int(*UTestFn)();
+typedef int (*UTestFn)();
 
 typedef struct UTest {
     string name;
@@ -14,8 +14,17 @@ typedef struct UTest {
 #define UTEST_FAIL 1
 #define UTEST_PASS 0
 
-// TODO: Assert messages with filename and location?
-#define UASSERT(expr) if (!expr) return UTEST_FAIL;
+#define UTEST_FAIL_MESSAGE(expr)                                                   \
+    do {                                                                           \
+        fprintf(stderr, "%s:%d: Assertion hit: " #expr " \n", __FILE__, __LINE__); \
+        return UTEST_FAIL;                                                         \
+    } while (0)
+
+#define UASSERT(expr)                 \
+    do {                              \
+        if (!(expr))                  \
+            UTEST_FAIL_MESSAGE(expr); \
+    } while (0)
 
 void utest_register(string name, UTest *tests, u32 count);
 
