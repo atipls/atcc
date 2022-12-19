@@ -151,7 +151,7 @@ bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f) {
 
     bc_patch_u32(buffer, hello_world, 0xD2800000 | ((hello_world_data & 0xFFFF) << 5) | X1);
 
-    /*
+    /*asdadsasd
     bc_emit_u32(buffer, 0xd2800020);// mov x0, #1
     bc_emit_u32(buffer, 0xd2800090);// mov x1, hello_world
     bc_emit_u32(buffer, 0xd4001001);// mov x2, #13
