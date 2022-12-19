@@ -136,8 +136,8 @@ bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f) {
         }
     }
 
-    arm64_emit_load64(X0, 1);
     u64 hello_world = buffer->size;
+    arm64_emit_load64(X0, 1);
     arm64_emit_load64(X1, 0);
     arm64_emit_load64(X2, 13);
     arm64_emit_load64(X16, 4);
