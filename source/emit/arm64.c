@@ -151,7 +151,6 @@ bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f) {
 
     bc_patch_u32(buffer, hello_world, 0xD2800000 | ((hello_world_data & 0xFFFF) << 5) | X1);
 
-    /*
     bc_emit_u32(buffer, 0xd2800020);// mov x0, #1
     bc_emit_u32(buffer, 0xd2800090);// mov x1, hello_world
     bc_emit_u32(buffer, 0xd4001001);// mov x2, #13
@@ -165,7 +164,6 @@ bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f) {
     bc_emit_u32(buffer, 0x646c726f);// .ascii "Hello, world!"
     bc_emit_u32(buffer, 0x00000021);// .ascii "Hello, world!"
 
-     */
     for (u64 i = 0; i < buffer->size; i += 4) {
         u32 instruction = *(u32 *) (buffer->data + i);
         printf("%08x\n", instruction);
