@@ -1,0 +1,58 @@
+
+const KEY_NULL := 0;
+const KEY_CTRL_C := 3;
+const KEY_CTRL_D := 4;
+const KEY_CTRL_F := 6;
+const KEY_CTRL_H := 8;
+const KEY_TAB    := 9;
+const KEY_CTRL_K := 11;
+const KEY_CTRL_L := 12;
+const KEY_ENTER  := 13;
+const KEY_CTRL_Q := 17;
+const KEY_CTRL_S := 19;
+const KEY_CTRL_U := 21;
+const KEY_ESCAPE := 27;
+const KEY_BACKSPACE := 127;
+
+const KEY_ARROW_LEFT  := 1000;
+const KEY_ARROW_RIGHT := 1001;
+const KEY_ARROW_UP    := 1002;
+const KEY_ARROW_DOWN  := 1003;
+const KEY_HOME        := 1004;
+const KEY_END         := 1005;
+const KEY_PAGE_UP     := 1006;
+const KEY_PAGE_DOWN   := 1007;
+const KEY_DELETE      := 1008;
+
+struct EditorRow {
+    index   : i32;
+    length  : i32;
+    rendered: i32;
+
+    raw_data     : string;
+    rendered_data: string;
+    highlight    : i32[];
+}
+
+struct Editor {
+    x, y: i32;
+    row_offset, col_offset: i32;
+    screen_rows, screen_cols: i32;
+
+    is_in_raw_mode: bool;
+    is_dirty: bool;
+
+    rows: EditorRow[];
+
+    filename: string;
+    status: string;
+
+    syntax: Syntax*;
+}
+
+var E: Editor = {};
+var R: EditorRow = {};
+
+fun UpdateWindowSize() {
+
+}

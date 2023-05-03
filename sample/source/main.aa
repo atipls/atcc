@@ -1,0 +1,22 @@
+
+fun TheTernary(): bool { return true ? 1 : 2; }
+
+fun Main(args: string[*]): i32 {
+    SetRawModeState(cast(u8*) &E.is_in_raw_mode);
+    if (!EnableRawMode(STDIN_FILENO)) {
+        print("\033[31mFailed to enable raw mode\033[0m\n");
+        return 1;
+    }
+
+    rows: i32 = 0;
+    cols: i32 = 0;
+
+    if (!GetWindowSize(STDIN_FILENO, STDOUT_FILENO, &rows, &cols)) {
+        print("\033[31mFailed to get window size\033[0m\n");
+        return 1;
+    }
+
+    printf("rows: %d, cols: %d\n".data, rows, cols);
+
+    return 0;
+}

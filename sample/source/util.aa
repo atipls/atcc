@@ -1,0 +1,105 @@
+/*
+tagged union Test {
+    Left(f64);
+    Right(f64);
+    Center(i32);
+}
+
+enum TestKind {
+    Left;
+    Right;
+    Center = 999;
+}
+
+*/
+
+fun ReadKey(fd: i32): i32 {
+    character: u8;
+
+    nread := 0;
+    do {
+        nread = read(fd, &character, cast(u64) 1);
+    } while (nread == 0);
+
+    if (nread == -1) exit(1);
+    if (character != KEY_ESCAPE)
+        return character;
+
+    esc1: u8;
+    esc2: u8;
+    esc3: u8;
+
+    while (true) {
+        if (read(fd, &esc1, cast(u64) 1) == 0) return KEY_ESCAPE;
+        if (read(fd, &esc2, cast(u64) 1) == 0) return KEY_ESCAPE;
+
+        if (esc1 == '[') {
+            if (esc2 >= '0' && esc2 <= '9') {
+                if (read(fd, &esc3, cast(u64) 1) == 0) return KEY_ESCAPE;
+                if (esc3 == '~') {
+                    switch (esc2) {
+                        case '3': return KEY_DELETE;
+                        case '5': return KEY_PAGE_UP;
+                        case '6': return KEY_PAGE_DOWN;
+                    }
+                }
+            } else {
+                switch (esc2) {
+                    case 'A': return KEY_ARROW_UP;
+                    case 'B': return KEY_ARROW_DOWN;
+                    case 'C': return KEY_ARROW_RIGHT;
+                    case 'D': return KEY_ARROW_LEFT;
+                    case 'H': return KEY_HOME;
+                    case 'F': return KEY_END;
+                }
+            }
+        } else if (esc1 == 'O') {
+            switch (esc2) {
+                case 'H': return KEY_HOME;
+                case 'F': return KEY_END;
+            }
+        }
+    }
+    
+    return -1;
+}
+
+fun GetCursorPosition(ifd: i32, ofd: i32, row: i32*, column: i32*): bool {
+    write(ofd, "\x1b[6n".data, cast(u64) 4);
+
+    escape_sequence: u8[32];
+
+    // Read the response: ESC [ rows ; columns R
+    i := 0;
+    while (i < escape_sequence.length) {
+        if (read(ifd, &escape_sequence[i], cast(u64) 1) != 1) break;
+        if (escape_sequence[i] == 'R') break;
+        i += 1;
+    }
+    escape_sequence[i] = 0;
+    printf("escape_sequence: %d\n".data, escape_sequence.length);
+
+
+    // Parse the escape sequence.
+    if (escape_sequence[0] != '\x1b' || escape_sequence[1] != '[') return false;
+    if (sscanf(&escape_sequence[2], "%d;%d".data, row, column) != 2) return false;
+
+    return true;
+}
+
+fun GetWindowSize(ifd: i32, ofd: i32, rows: i32*, columns: i32*): bool {
+    original_row: i32;
+    original_col: i32;
+
+    if (!GetCursorPosition(ifd, ofd, &original_row, &original_col)) return false;
+
+    write(ofd, "\x1b[999C\x1b[999B".data, cast(u64) 12);
+
+    if (!GetCursorPosition(ifd, ofd, rows, columns)) return false;
+
+    sequence: u8[32];
+    length := snprintf(&sequence[0], sequence.length, "\x1b[%d;%dH".data, original_row, original_col);
+    write(ofd, &sequence[0], cast(u64) length);
+
+    return true;
+}

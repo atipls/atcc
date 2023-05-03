@@ -1,0 +1,16 @@
+
+const STDIN_FILENO  := 0;
+const STDOUT_FILENO := 1;
+const STDERR_FILENO := 2;
+
+fun read(fd: i32, data: void*, len: u64): i64;
+fun write(fd: i32, data: void*, len: u64): i64;
+
+fun sscanf(str: u8*, fmt: u8*, ..): i32;
+
+fun snprintf(str: u8*, n: i64, fmt: u8*, ..): i32;
+
+fun SetRawModeState(state: u8*);
+
+fun EnableRawMode(fd: i32): bool;
+fun DisableRawMode(fd: i32): bool;

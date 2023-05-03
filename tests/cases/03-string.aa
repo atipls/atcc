@@ -1,0 +1,11 @@
+
+fun Main(args: string[*]): i32 {
+    assert("Hello, World!".length == 13, "Uh oh, something is wrong with the string length");
+
+    i := 1;
+    j := &i;
+
+    assert(*j == 1, "Uh oh, something is wrong with the pointer");
+
+    return 0;
+}

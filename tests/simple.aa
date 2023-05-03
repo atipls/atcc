@@ -1,0 +1,104 @@
+var aGlobal: u64;
+
+fun Test0() {}
+fun Test1(a1: i32) {}
+fun Test2(a1: i32): i32 { return 0; }
+fun Test3(a1: i32): i32 { return 5 + a1; }
+fun Test4(a1: i32): i32 {
+	locVar := a1;
+	return locVar;
+}
+fun Test051(): bool { return 1 || 2; }
+fun Test052(): bool { return 1 && 2; }
+fun Test053(): bool { return true ? 1 : 2; }
+fun Test054(): bool { return (true ? 1 : 2) || 2; }
+fun Test055(): bool { return (true ? 1 : 2) && 2; }
+fun Test056(): bool { return (true ? 1 : 2) || (true ? 1 : 2); }
+fun Test057(): bool { return (true ? 1 : 2) && (true ? 1 : 2); }
+fun Test5(hello: i32): i32 {
+	test := hello - 1;
+	if (test == -1) {
+		return 3;
+	} else if (test == 0) {
+		return 4;
+	}
+	return 8;
+}
+fun Test51(hello: i32): i32 {
+	if (hello >= 20 && hello <= 30) {
+		return hello - 1;
+	} else {
+		return hello + 1;
+	}
+}
+fun Test52(hello: i32): i32 {
+	hey := hello;
+	hey = 10;
+	return hey;
+}
+fun Test53(hello: i32): i32 {
+	hey := hello;
+    aGlobal = cast(u64) hey;
+	return aGlobal;
+}
+
+fun Print(fmt: i8*, ..): i32;
+
+fun Test15(): i32 {
+	hello := 333;
+
+	if (false || hello > 0) {
+		hello = 12;
+		aGlobal = 553;
+		h2 := cast(u32) aGlobal;
+		if (false) {
+			return 92;
+		}
+	} else if (1 || 2) {
+		hello = 34;
+	}
+
+	hello = 33;
+	return hello;
+
+}
+
+fun Test55(hello: i32): i32 {
+	test2 := 90;
+	switch (hello) {
+		case 1: test2 = 80;
+	}
+	return test2;
+}
+fun Test56(hello: i32): i32 {
+	test2 := 90;
+	switch (hello) {
+		case 1: test2 = 80;
+		default: test2 = 70;
+	}
+	return test2;
+}
+
+fun Test66(): i32 {
+    return Test67(0);
+}
+
+fun Test67(a: i32): i32 {
+    return Test3(a + 6) * 4;
+}
+
+struct Foo {
+    foo: Foo*;
+    value: i32;
+};
+
+fun Test68(): i32 {
+    a := Foo{};
+    a.foo = &a;
+    a.foo.value = 19132;
+    return a.value;
+}
+
+fun Main(args: string[*]): i32 {
+	return 0;
+}

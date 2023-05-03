@@ -1,0 +1,25 @@
+
+// This is a comment.
+/* This is a comment. */
+/* This is a comment.
+   This is a comment. */
+
+/* /* This is a comment. */ var x { */
+
+fun Main(args: string[*]): i32 {
+    printf("Hello, World! %d\n".data, 14);
+    assert(true, "This is a test");
+
+    for (i := 0; i < args.length; i += 1) {
+        print(args[i]);
+    }
+
+    if (args.length > 1 && args[1] == "test") {
+        print("First argument is 'test'");
+    } else {
+        print("First argument is not 'test'");
+        assert(false, "First argument is not 'test'");
+    }
+
+    return 0;
+}

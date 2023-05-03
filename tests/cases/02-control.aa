@@ -1,0 +1,115 @@
+
+fun AssertSwitch(i: i32) {
+    printf("Switch: %d\n".data, i);
+
+    switch (i) {
+        case 0: print("0"); assert(i == 0, "I is not 0 in case 0");
+        case 1: print("1"); assert(i == 1, "I is not 1 in case 1");
+        case 2: print("2"); assert(i == 2, "I is not 2 in case 2");
+        case 3: print("3"); assert(i == 3, "I is not 3 in case 3");
+        case 4: print("4"); assert(i == 4, "I is not 4 in case 4");
+        case 5: print("5"); assert(i == 5, "I is not 5 in case 5");
+        case 6: print("6"); assert(i == 6, "I is not 6 in case 6");
+        case 7: print("7"); assert(i == 7, "I is not 7 in case 7");
+        case 8: print("8"); assert(i == 8, "I is not 8 in case 8");
+        case 9: print("9"); assert(i == 9, "I is not 9 in case 9");
+        default: print("10"); assert(i == 10, "I is not 10 in default");
+    }
+}
+
+fun Main(args: string[*]): i32 {
+    accumulator := 0;
+
+    while (false) {
+        accumulator += 1;
+        assert(false, "This should never happen");
+    }
+
+    do {
+        accumulator += 1;
+        assert(true, "This should happen");
+        break;
+        accumulator += 1;
+        assert(false, "This should never happen");
+    } while (false);
+
+    for (i := 0; i < 10; i += 1) {
+        accumulator += 1;
+        assert(i < 10, "This should never happen");
+    }
+
+    switch (-19) {
+        case -20 .. -10:
+            accumulator += 1;
+            assert(true, "This should happen");
+        case 20 .. 30:
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case 0:
+            accumulator += 1;
+            assert(false, "This should never happen");
+        default:
+            accumulator += 1;
+            assert(false, "This should never happen");
+    }
+
+    switch ("world") {
+        case "hello":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "world":
+            accumulator += 1;
+            assert(true, "This should happen");
+        default:
+            accumulator += 1;
+            assert(false, "This should never default");
+    }
+
+    switch ("balls gaming") {
+        case "balls":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "gaming":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "balls gaming":
+            accumulator += 1;
+            assert(true, "This should happen");
+        default:
+            accumulator += 1;
+            assert(false, "This should never default");
+    }
+
+    switch ("sadkjhfgsadkljdgf") {
+        case "hello":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        case "world":
+            accumulator += 1;
+            assert(false, "This should never happen");
+        default:
+            accumulator += 1;
+            assert(true, "This should happen");
+    }
+
+    for (i := 0; i <= 10; i += 1) {
+        AssertSwitch(i);
+    }
+
+    if (1 != 1) {
+        accumulator += 1;
+        assert(false, "This should never happen");
+    } else if (1 == 1) {
+        accumulator += 1;
+        assert(true, "This should happen");
+    } else {
+        accumulator += 1;
+        assert(false, "This should never happen");
+    }
+
+    printf("accumulator: %d\n".data, accumulator);
+
+    assert(accumulator == 16, "Expected 16 as the accumulator value");
+
+    return 0;
+}

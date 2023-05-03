@@ -1,0 +1,76 @@
+enum TestEnum1 { // Default type is i64.
+    EnumA;
+    EnumB;
+    EnumC;
+}
+
+enum TestEnum2 : i32 {
+    EnumD;
+    EnumE;
+    EnumF;
+    EnumG = 10;
+    EnumH;
+}
+
+enum StringEnum : string {
+    EnumI = "Hello";
+    EnumJ = "World";
+}
+
+struct TestStruct1 {
+    a: i64;
+    b: i64;
+}
+
+struct TestStruct2 {
+    a: TestEnum1;
+    b: TestEnum2;
+}
+
+fun assertIs(what: bool) {
+    assert(what, "");
+}
+
+fun SimpleEnumTest1() {
+    assertIs(EnumA == 0);
+    assertIs(EnumB == 1);
+    assertIs(EnumC == 2);
+}
+
+fun SimpleEnumTest2() {
+    assertIs(EnumD == 0);
+    assertIs(EnumE == 1);
+    assertIs(EnumF == 2);
+}
+
+fun SimpleEnumTest3() {
+    assertIs(EnumG == 10);
+    assertIs(EnumH == 11);
+}
+
+fun Main(args: string[*]): i32 {
+    SimpleEnumTest1();
+    SimpleEnumTest2();
+    SimpleEnumTest3();
+
+    s1 := TestStruct1 {
+        a = 1,
+        b = 2,
+    };
+
+    s2 := TestStruct2 {
+        a = EnumA,
+        b = EnumE,
+    };
+
+    assertIs(s1.a == EnumB);
+    assertIs(s1.b == EnumC);
+
+    assertIs(s2.a == 0);
+    assertIs(s2.b == 1);
+
+    assertIs(EnumI == "Hello");
+    assertIs(EnumJ == "World");
+
+    return 0;
+}

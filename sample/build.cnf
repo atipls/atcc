@@ -1,0 +1,19 @@
+project-name = "my-project"
+project-type = "executable"
+main-module  = "Editor"
+backend      = "c" # or "arm64" or "amd64"
+build        = "debug" # or "release"
+verbose      = "8191"
+
+files = [
+    "source/editor.aa",
+    "source/highlight.aa",
+    "source/interop.aa",
+    "source/util.aa",
+    "source/main.aa",
+
+    # These don't work yet
+    @windows "source/os/windows.aa",
+    @linux   "source/os/linux.aa",
+    @macos   "source/os/macos.aa",
+]

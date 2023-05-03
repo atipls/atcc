@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+
+import sys
+from subprocess import run as execute
+
+DISABLED_WARNINGS = [
+    "-Wno-pointer-sign",
+    "-Wno-incompatible-library-redeclaration",
+    "-Wno-incompatible-pointer-types",
+    # "-Wno-builtin-declaration-mismatch"
+]
+
+
+commands = {}
+
+
+def command_handler(function):
+    commands[function.__name__] = function
+    return function
+
+
+def generate_source_file(istream, ostream, identifier):
+    def generate_single_byte(byte):
+        if ord(' ') <= byte <= ord('~'):
+            if byte == ord('\"') or byte == ord('\\'):
+                ostream.write('\\')
+            ostream.write(chr(byte))
+        elif byte == ord('\n'):
+            ostream.write('\\n"\n"')
+        else:
+            ostream.write(f'\\x{byte:02x}')
+
+    ostream.write('#include <stddef.h>\n\n')
+    ostream.write('#ifdef PRELOAD_INCLUDED\n')
+    ostream.write('extern const char {}[];\n'.format(identifier))
+    ostream.write('extern const size_t {}_len;\n\n'.format(identifier))
+    ostream.write('const char {}[] =\n"'.format(identifier))
+
+    while True:
+        input_byte = istream.read(1)
+        if input_byte == b"":
+            break
+
+        generate_single_byte(ord(input_byte))
+
+    ostream.write('";\n\n')
+    ostream.write('const size_t {}_len = sizeof({}) - 1;\n'.format(identifier, identifier))
+    ostream.write('#endif\n')
+
+
+# Commands
+
+@command_handler
+def clion(_arguments):
+    """
+    Builds all configurations for CLion.
+    """
+
+    for path in [
+        "build/debug",
+        "build/release",
+        "build/coverage",
+    ]:
+        print(f"Building {path}...")
+        execute(["cmake", "--build", path])
+
+
+@command_handler
+def test_all(_arguments):
+    """
+    Runs debug and release tests.
+    """
+
+    execute(["./tests/runner.py", "clion:debug"])
+    execute(["./tests/runner.py", "clion:release"])
+
+
+@command_handler
+def test_debug(_arguments):
+    """
+    Builds the debug compiler and runs the tests.
+    """
+
+    execute(["cmake", "--build", "build/debug"])
+    execute(["./tests/runner.py", "clion:debug"])
+
+
+@command_handler
+def test_release(_arguments):
+    """
+    Builds the release compiler and runs the tests.
+    """
+
+    execute(["cmake", "--build", "build/release"])
+    execute(["./tests/runner.py", "clion:release"])
+
+
+@command_handler
+def generate_preload(_arguments):
+    """
+    Generates preload.c from preload.aa.
+    """
+
+    istream = open("runtime/preload.aa", "rb")
+    ostream = open("source/preload.c", "w")
+
+    try:
+        generate_source_file(istream, ostream, "preload_source")
+    except Exception as e:
+        print(f"Failed generating preload: {e}")
+    finally:
+        ostream.close()
+        istream.close()
+
+
+@command_handler
+def compile_file(arguments):
+    """
+    Uses the compiler to build a program.
+    """
+
+    clion([])  # Make sure the compiler is built.
+
+    execute(["./build/debug/atcc", *arguments])
+    execute(["clang", "-O0", "-g", *DISABLED_WARNINGS, "-fsanitize=address", "-o", "program", "generated.c"])
+    execute(["./program"])
+
+
+def main(args):
+    if len(args) < 1:
+        print("Please specify a command.")
+        print("Available commands:")
+        for command in commands:
+            print(f"  {command}: {commands[command].__doc__}")
+        return
+
+    command = args[0].replace("-", "_")
+    arguments = args[1:]
+
+    if handler := commands.get(command):
+        handler(arguments)
+        print("Done.")
+    else:
+        print(f"Unknown command: {command}")
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

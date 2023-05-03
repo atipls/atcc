@@ -1,0 +1,23 @@
+var threadSwitch := 0;
+
+fun Thread1() {
+    print("In Thread1");
+    threadSwitch = 1;
+}
+
+fun Thread2() {
+    print("In Thread2");
+    threadSwitch = 0;
+}
+
+fun Main(args: string[*]): i32 {
+    for (i := 0; i < 100; i+=1) {
+        if (threadSwitch == 0) {
+            Thread1();
+        } else {
+            Thread2();
+        }
+    }
+
+    return 0;
+}
