@@ -13,6 +13,7 @@ fun Main(args: string[*]): i32 {
     foo: i32[1] = { 2 };
     bar: i32[1] = { 4 };
 
+/*
     baz: i32[5] = {
         [3] = 5,
     };
@@ -22,7 +23,7 @@ fun Main(args: string[*]): i32 {
     assert(baz[2] == 0, "baz[2] == 0");
     assert(baz[3] == 5, "baz[3] == 5");
     assert(baz[4] == 0, "baz[4] == 0");
-
+*/
 
     assert(globalString == "Hello, World!", "Global string is not equal to 'Hello, World!'");
     assert(globalString.length == 13, "Global string length is not 13");

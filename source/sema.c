@@ -799,7 +799,9 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 }
 
                 if (string_match(expression->field_name, str("data"))) {
-                    expression->base_type = field_type;
+                    expression->base_type = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
+                    expression->base_type->base_type = field_type->base_type;
+
                     return expression->base_type;
                 }
 
