@@ -145,6 +145,15 @@ static BCValue build_string_equals(BuildContext *context, BCValue left, BCValue 
     return bc_insn_call(context->function, string_equals, string_equals_args, 2);
 }
 
+static BCValue build_memset(BuildContext *context, BCValue target, BCValue value, BCValue size) {
+    BCValue memset_function = string_table_get(&context->functions, str("__atcc_memset"));
+    BCValue *memset_args = make_n(BCValue, 3);
+    memset_args[0] = target;
+    memset_args[1] = value;
+    memset_args[2] = size;
+    return bc_insn_call(context->function, memset_function, memset_args, 3);
+}
+
 static BCValue build_expression_unary(BuildContext *context, ASTNode *expression) {
     if (expression->unary_operator == TOKEN_AMPERSAND)
         return build_expression_lvalue(context, expression->unary_target);
@@ -336,6 +345,14 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
     BCType type = build_convert_type(context, ntype);
     BCValue compound = bc_function_define(context->function, type);
     assert(compound->type->kind == BC_TYPE_POINTER);
+    BCType base_type = compound->type->base;
+    if (base_type->kind == BC_TYPE_ARRAY && !base_type->is_dynamic && base_type->count) {
+        // Do a memset to zero out the array.
+        BCValue data_pointer = bc_insn_get_field(context->function, compound, base_type->element, 1);
+        BCValue data_size = bc_insn_mul(context->function, bc_value_make_consti(bc_type_u64, base_type->element->size),
+                                        base_type->count);
+        build_memset(context, data_pointer, bc_value_make_consti(bc_type_u8, 0), data_size);
+    }
 
     u64 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
@@ -388,7 +405,9 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
                 BCType field_type = build_convert_type(context, node_type(field));
                 BCValue value = build_expression(context, field->compound_field_target);
                 BCValue index = build_expression(context, field->compound_field_index);
-                BCValue target = bc_insn_get_index(context->function, compound, field_type, index);
+                BCValue target = bc_insn_get_field(context->function, compound, field_type, 1);
+
+                target = bc_insn_get_index(context->function, target, field_type, index);
 
                 bc_insn_store(context->function, target, value);
                 break;

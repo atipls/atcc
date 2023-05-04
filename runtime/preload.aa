@@ -21,6 +21,13 @@ fun __atcc_string_equals(a: string, b: string): i32 {
     return 0;
 }
 
+fun __atcc_memset(ptr: void*, value: i32, num: u32): void* {
+    bytes := cast(u8*) ptr;
+    for (i := 0; i < num; i += 1)
+        bytes[i] = cast(u8) value;
+    return ptr;
+}
+
 fun __atcc_start(argc: i32, argv: u8**): i32 {
     __atcc_init_globals();
 
