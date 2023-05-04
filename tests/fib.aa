@@ -1,0 +1,33 @@
+fun Fibonacci(nth: i32): i32 {
+    if (nth == 0) return 0;
+    if (nth == 1) return 1;
+    return Fibonacci(nth - 1) + Fibonacci(nth - 2);
+}
+
+fun memset(v: void*, val: u8, len: u32): void*;
+fun free(ptr: void*): void;
+
+fun NumPrimesLessThan(nth: i32): i32 {
+    count := 0;
+
+    flags := malloc(nth);
+    memset(flags, 1, cast(u32) nth);
+
+    for (i := 2; i < nth; i += 1) {
+        if (flags[i] == 1) {
+            count += 1;
+            for (j := i + i; j < nth; j += i) {
+                flags[j] = 0;
+            }
+        }
+    }
+
+    free(flags);
+    return count;
+}
+
+fun Main(args: string[*]): i32 {
+    printf("Fibonacci(40) = %d\n".data, Fibonacci(40));
+    printf("NumPrimesLessThan(1000000) = %d\n".data, NumPrimesLessThan(1000000));
+    return 0;
+}
