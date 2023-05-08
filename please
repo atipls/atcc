@@ -126,6 +126,17 @@ def compile_file(arguments):
     execute(["./program"])
 
 
+@command_handler
+def llvm(arguments):
+    """
+    Uses the compiler to build a program using the LLVM backend.
+    """
+
+    clion([])  # Make sure the compiler is built.
+
+    execute(["./build/debug/atcc", "-b", "llvm", *arguments])
+
+
 def main(args):
     if len(args) < 1:
         print("Please specify a command.")

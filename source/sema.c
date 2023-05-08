@@ -208,8 +208,8 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
                 Type *cached_type = pointer_table_get(&context->array_types, (void *) type_hash);
                 if (cached_type) return cached_type;
 
-                // +4 for the length field
-                Type *array = make_type(TYPE_ARRAY, size + 4, POINTER_SIZE);
+                // +POINTER_SIZE for the length field (alignment)
+                Type *array = make_type(TYPE_ARRAY, size + POINTER_SIZE, POINTER_SIZE);
                 array->array_base = base_type;
                 array->array_size = (u32) node->array_size->literal_as_u64;
 
@@ -221,8 +221,8 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
                 Type *cached_type = pointer_table_get(&context->array_types, (void *) type_hash);
                 if (cached_type) return cached_type;
 
-                // +4 for length
-                Type *array = make_type(TYPE_ARRAY, POINTER_SIZE + 4, POINTER_SIZE);
+                // +POINTER_SIZE for length field (alignment)
+                Type *array = make_type(TYPE_ARRAY, POINTER_SIZE * 2, POINTER_SIZE);
                 array->array_base = base_type;
                 array->array_is_dynamic = node->array_is_dynamic;
 

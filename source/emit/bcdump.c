@@ -61,21 +61,28 @@ static void bc_dump_type(BCType type, FILE *f) {
 
 static void bc_dump_value(BCValue value, FILE *f) {
     if (!value) return;
-    if (value->flags & BC_VALUE_IS_PARAMETER) {
+    if (value->kind == BC_VALUE_PARAMETER) {
         fprintf(f, "param%llu[", value->storage);
         bc_dump_type(value->type, f);
         fprintf(f, "]");
         return;
     }
 
-    if (value->flags & BC_VALUE_IS_TEMPORARY) {
+    if (value->kind == BC_VALUE_TEMPORARY) {
         fprintf(f, "V%llu[", value->storage);
         bc_dump_type(value->type, f);
         fprintf(f, "]");
         return;
     }
 
-    if (value->flags & BC_VALUE_IS_CONSTANT) {
+    if (value->kind == BC_VALUE_PHI) {
+        fprintf(f, "V%llu[", value->phi_result->storage);
+        bc_dump_type(value->type, f);
+        fprintf(f, "]");
+        return;
+    }
+
+    if (value->kind == BC_VALUE_CONSTANT) {
         if (value->type->kind == BC_TYPE_AGGREGATE && string_match(value->type->name, str("string"))) {
             fprintf(f, "\"%.*s\"", strp(value->string));
         } else if (value->type->kind != BC_TYPE_BASE) {
@@ -97,25 +104,38 @@ static void bc_dump_value(BCValue value, FILE *f) {
         return;
     }
 
-    if (value->flags & BC_VALUE_IS_ON_STACK) {
+    if (value->kind == BC_VALUE_LOCAL) {
         fprintf(f, "(stack+%llu)[", value->storage);
         bc_dump_type(value->type, f);
         fprintf(f, "]");
         return;
     }
 
-    if (value->flags & BC_VALUE_IS_FUNCTION) {
+    if (value->kind == BC_VALUE_FUNCTION) {
         BCFunction function = (BCFunction) value->storage;
         fprintf(f, "%.*s", strp(function->name));
+        return;
+    }
+
+    if (value->kind == BC_VALUE_GLOBAL) {
+        fprintf(f, "(global+%llu)[", value->storage);
+        bc_dump_type(value->type, f);
+        fprintf(f, "]");
+        return;
+    }
+
+    if (value->kind == BC_VALUE_STRING) {
+        fprintf(f, "\"%.*s\"", strp(value->string));
         return;
     }
 
     fprintf(f, "todo[");
     bc_dump_type(value->type, f);
     fprintf(f, "]");
+
 }
 
-static void bc_dump_code(BCCode code, FILE *f) {
+void bc_dump_code(BCCode code, FILE *f) {
 #define ARITH_CASE(opcode, value)     \
     case opcode:                      \
         bc_dump_value(code->regD, f); \
@@ -183,6 +203,18 @@ static void bc_dump_code(BCCode code, FILE *f) {
             fprintf(f, "jump_if ");
             bc_dump_value(code->regA, f);
             fprintf(f, " to block%llu else block%llu", code->bbT->serial, code->bbF->serial);
+            break;
+        case BC_OP_PHI:
+            bc_dump_value(code->phi_value->phi_result, f);
+            fprintf(f, " = phi(");
+            for (u32 i = 0; i < code->phi_value->num_phi; i++) {
+                fprintf(f, "block%llu: ", code->phi_value->phi_blocks[i]->serial);
+                bc_dump_value(code->phi_value->phi_values[i], f);
+
+                if (i < code->phi_value->num_phi - 1)
+                    fprintf(f, ", ");
+            }
+            fprintf(f, ")");
             break;
         case BC_OP_CALL: {
             bc_dump_value(code->result, f);
@@ -272,14 +304,7 @@ void bc_dump_function(BCFunction function, FILE *f) {
     fprintf(f, " - stack size %u\n", function->stack_size);
 
     for (BCBlock block = function->first_block; block; block = block->next) {
-        fprintf(f, "  ---- block%llu", block->serial);
-        if (block->input) {
-            fprintf(f, " (accepts ");
-            bc_dump_value(block->input, f);
-            fprintf(f, "):\n");
-        } else {
-            fprintf(f, ":\n");
-        }
+        fprintf(f, "  ---- block%llu:\n", block->serial);
 
         vector_foreach(BCCode, code_ptr, block->code) {
             fprintf(f, "    ");

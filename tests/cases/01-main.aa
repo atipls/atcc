@@ -7,7 +7,7 @@
 /* /* This is a comment. */ var x { */
 
 fun Main(args: string[*]): i32 {
-    printf("Hello, World! %d\n".data, 14);
+    printf("Hello, World!\n".data);
     assert(true, "This is a test");
 
     for (i := 0; i < args.length; i += 1) {
@@ -17,7 +17,6 @@ fun Main(args: string[*]): i32 {
     if (args.length > 1 && args[1] == "test") {
         print("First argument is 'test'");
     } else {
-        print("First argument is not 'test'");
         assert(false, "First argument is not 'test'");
     }
 

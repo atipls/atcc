@@ -8,7 +8,7 @@ BCValue bc_value_make(BCFunction function, BCType type) {
     BCValue value = make(struct SBCValue);
 
     value->type = type;
-    value->flags = BC_VALUE_IS_TEMPORARY;
+    value->kind = BC_VALUE_TEMPORARY;
     value->storage = function->last_temporary++;
 
     return value;
@@ -21,7 +21,7 @@ BCValue bc_value_make_consti(BCType type, u64 value) {
     assert(!type->is_floating);
 
     constant->type = type;
-    constant->flags = BC_VALUE_IS_CONSTANT;
+    constant->kind = BC_VALUE_CONSTANT;
     constant->storage = value;
     return constant;
 }
@@ -33,9 +33,36 @@ BCValue bc_value_make_constf(BCType type, f64 value) {
     assert(type->is_floating);
 
     constant->type = type;
-    constant->flags = BC_VALUE_IS_CONSTANT;
+    constant->kind = BC_VALUE_CONSTANT;
     constant->floating = value;
     return constant;
+}
+
+BCValue bc_value_make_string(BCContext context, BCType type, string string) {
+    BCValue constant = make(struct SBCValue);
+
+    constant->type = bc_type_pointer(type);
+    constant->kind = BC_VALUE_STRING;
+    constant->string = string;
+    constant->string_index = vector_len(context->strings);
+
+    vector_push(context->strings, constant);
+
+    return constant;
+}
+
+BCValue bc_value_make_phi(BCFunction function, BCType type) {
+    BCValue phi = make(struct SBCValue);
+
+    phi->type = type;
+    phi->kind = BC_VALUE_PHI;
+
+    phi->phi_result = bc_value_make(function, type);
+    phi->phi_values = NULL;
+    phi->phi_blocks = NULL;
+    phi->num_phi = 0;
+
+    return phi;
 }
 
 BCValue bc_value_get_parameter(BCFunction function, u32 index) {
@@ -44,7 +71,7 @@ BCValue bc_value_get_parameter(BCFunction function, u32 index) {
         for (u64 i = 0; i < function->signature->num_params; i++) {
             BCValue param = &function->params[i];
 
-            param->flags |= BC_VALUE_IS_PARAMETER;
+            param->kind = BC_VALUE_PARAMETER;
             param->type = function->signature->params[i];
             param->storage = i;
         }
@@ -79,11 +106,11 @@ BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynam
     BCType array = make(struct SBCType);
     array->kind = BC_TYPE_ARRAY;
 
-    if (!is_dynamic && size && size->flags & BC_VALUE_IS_CONSTANT)
-        array->size = array->alignment = type->size * (u32) size->storage;
+    if (!is_dynamic && size && size->kind == BC_VALUE_CONSTANT)
+        array->size = array->alignment = type->size * (u32) size->storage + POINTER_SIZE; // TODO: Better alignment.
 
     if (is_dynamic || !size)
-        array->size = array->alignment = POINTER_SIZE + bc_type_u32->size;
+        array->size = array->alignment = POINTER_SIZE * 2; // TODO: Better alignment.
 
     array->element = type;
     array->count = size;
@@ -164,7 +191,7 @@ BCBlock bc_function_get_block(BCFunction function) {
 
 BCValue bc_function_define(BCFunction function, BCType type) {
     BCValue value = make(struct SBCValue);
-    value->flags = BC_VALUE_IS_ON_STACK;
+    value->kind = BC_VALUE_LOCAL;
     value->type = bc_type_pointer(type);
     value->storage = function->stack_size;
     function->stack_size += type->size;
@@ -224,7 +251,7 @@ BCValue bc_insn_nop(BCFunction function) {
 }
 
 BCValue bc_insn_load(BCFunction function, BCValue source) {
-    if (source->flags & BC_VALUE_IS_CONSTANT)
+    if (source->kind == BC_VALUE_CONSTANT)
         return source;
     assert(source->type->kind == BC_TYPE_POINTER);
 
@@ -247,6 +274,8 @@ BCValue bc_insn_store(BCFunction function, BCValue dest, BCValue source) {
 
 BCValue bc_insn_get_field(BCFunction function, BCValue source, BCType type, u64 field) {
     BCCode insn = bc_insn_of(function);
+
+    assert(source->type->kind == BC_TYPE_POINTER);
 
     insn->opcode = BC_OP_GET_FIELD;
     insn->regA = source;
@@ -285,6 +314,30 @@ BCCode bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block_true, BC
     insn->bbF = block_false;
 
     return insn;
+}
+
+BCValue bc_insn_phi(BCFunction function, BCType type) {
+    BCCode insn = bc_insn_of(function);
+
+    insn->opcode = BC_OP_PHI;
+    insn->phi_value = bc_value_make_phi(function, type);
+
+    return insn->phi_value;
+}
+
+void bc_insn_phi_add_incoming(BCValue phi, BCValue *values, BCBlock *blocks, u32 num_incoming) {
+    assert(phi->kind == BC_VALUE_PHI);
+    assert(num_incoming > 0);
+
+    for (u32 i = 0; i < num_incoming; i++) {
+        vector_push(phi->phi_values, values[i]);
+        vector_push(phi->phi_blocks, blocks[i]);
+
+        BCCode last_insn = vector_last(blocks[i]->code);
+        last_insn->regC = values[i];
+    }
+
+    phi->num_phi += num_incoming;
 }
 
 static BCValue bc_insn_arith(BCFunction function, BCOpcode opcode, BCValue arg1, BCValue arg2) {

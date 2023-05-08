@@ -39,7 +39,7 @@ fun Test52(hello: i32): i32 {
 fun Test53(hello: i32): i32 {
 	hey := hello;
     aGlobal = cast(u64) hey;
-	return aGlobal;
+	return cast(i32) aGlobal;
 }
 
 fun Print(fmt: i8*, ..): i32;
@@ -90,7 +90,7 @@ fun Test67(a: i32): i32 {
 struct Foo {
     foo: Foo*;
     value: i32;
-};
+}
 
 fun Test68(): i32 {
     a := Foo{};

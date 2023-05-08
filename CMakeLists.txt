@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.21)
-project(atcc C)
+project(atcc C CXX)
 
 set(CMAKE_C_STANDARD 99)
+
+if (APPLE)
+    set(LLVM_DIR /opt/homebrew/opt/llvm/lib/cmake/llvm)
+endif ()
 
 add_executable(atcc
         source/ati/basic.h
@@ -15,13 +19,16 @@ add_executable(atcc
         source/ati/utest.h
         source/ati/utils.c
         source/ati/utils.h
+        source/ati/tests.c
         source/debug.c
         source/emit/amd64.c
         source/emit/arm64.c
         source/emit/bcdump.c
         source/emit/bytecode.c
         source/emit/bytecode.h
+        source/emit/llvm.c
         source/emit/source.c
+        source/emit/tests.c
         source/lexer.c
         source/lower.c
         source/main.c
@@ -29,7 +36,24 @@ add_executable(atcc
         source/sema.c
         source/type.c
         source/eval.c
-        source/emit/tests.c source/ati/tests.c)
+        )
+
+
+find_package(LLVM CONFIG)
+
+if (LLVM_FOUND)
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+    target_include_directories(atcc PRIVATE ${LLVM_INCLUDE_DIRS})
+    target_compile_definitions(atcc PRIVATE ${LLVM_DEFINITIONS})
+    target_link_directories(atcc PRIVATE ${LLVM_LIBRARY_DIRS})
+
+    target_compile_definitions(atcc PRIVATE -DUSE_LLVM)
+    target_link_libraries(atcc LLVM)
+else ()
+    message(STATUS "LLVM not found")
+endif ()
 
 target_include_directories(atcc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source)
 

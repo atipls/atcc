@@ -8,7 +8,9 @@
 #include <string.h>
 
 #define PRELOAD_INCLUDED
+
 #include "preload.c"
+
 #undef PRELOAD_INCLUDED
 
 struct {
@@ -82,7 +84,7 @@ static void print_help() {
 }
 
 static i32 compiler_load_preload(SemanticContext *sema_context) {
-    Token *tokens = lexer_tokenize(str("preload.aa"), (Buffer){(i8 *) preload_source, preload_source_len});
+    Token *tokens = lexer_tokenize(str("preload.aa"), (Buffer) {(i8 *) preload_source, preload_source_len});
     ASTNode *program = parse_program(tokens);
 
     if (!sema_register_program(sema_context, program)) {
@@ -160,7 +162,20 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
 
         FILE *file = fopen(string_to_cstring(outpath), "wb");
         if (!bc_generate_arm64(build_context->bc, BC_OBJECT_KIND_MACOS, file))
-           fprintf(stderr, "Generating ARM64 failed.\n");
+            fprintf(stderr, "Generating ARM64 failed.\n");
+        fclose(file);
+    } else if (string_match(backend, str("amd64"))) {
+        string outpath = string_format(str("%.*s.bin"), strp(output));
+
+        FILE *file = fopen(string_to_cstring(outpath), "wb");
+        if (!bc_generate_amd64(build_context->bc, BC_OBJECT_KIND_MACOS, file))
+            fprintf(stderr, "Generating AMD64 failed.\n");
+        fclose(file);
+    } else if (string_match(backend, str("llvm"))) {
+        string outpath = string_format(str("%.*s.ll"), strp(output));
+        FILE *file = fopen(string_to_cstring(outpath), "wb");
+        if (!bc_generate_llvm(build_context->bc, file))
+            fprintf(stderr, "Generating LLVM failed.\n");
         fclose(file);
     } else {
         fprintf(stderr, "Unknown backend: %.*s\n", strp(backend));

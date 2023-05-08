@@ -11,22 +11,34 @@ typedef struct SBCFunction *BCFunction;
 typedef struct SBCContext *BCContext;
 
 typedef enum {
-    BC_VALUE_IS_CONSTANT = (1 << 1),
-    BC_VALUE_IS_PARAMETER = (1 << 2),
-    BC_VALUE_IS_TEMPORARY = (1 << 3),
-    BC_VALUE_IS_ON_STACK = (1 << 4),
-    BC_VALUE_IS_GLOBAL = (1 << 5),
-    BC_VALUE_IS_FUNCTION = (1 << 6),
-} BCValueFlags;
+    BC_VALUE_CONSTANT,
+    BC_VALUE_STRING,
+    BC_VALUE_PARAMETER,
+    BC_VALUE_TEMPORARY,
+    BC_VALUE_PHI,
+    BC_VALUE_LOCAL,
+    BC_VALUE_GLOBAL,
+    BC_VALUE_FUNCTION,
+} BCValueKind;
 
 struct SBCValue {
-    BCValueFlags flags;
+    BCValueKind kind;
     BCType type;
+    void *backend_data;
     union {
         u64 storage;
         i64 istorage;
         f64 floating;
-        string string;
+        struct {
+            string string;
+            u64 string_index;
+        };
+        struct {
+            BCValue phi_result;
+            BCValue *phi_values;
+            BCBlock *phi_blocks;
+            u32 num_phi;
+        };
     };
 };
 
@@ -34,6 +46,10 @@ BCValue bc_value_make(BCFunction function, BCType type);
 
 BCValue bc_value_make_consti(BCType type, u64 value);
 BCValue bc_value_make_constf(BCType type, f64 value);
+
+BCValue bc_value_make_string(BCContext context, BCType type, string string);
+
+BCValue bc_value_make_phi(BCFunction function, BCType type);
 
 BCValue bc_value_get_parameter(BCFunction function, u32 index);
 
@@ -78,6 +94,7 @@ struct SBCType {
             BCType result;
             BCType *params;
             u32 num_params;
+            bool is_variadic;
         };
     };
 };
@@ -127,6 +144,7 @@ typedef enum {
 
     BC_OP_JUMP,
     BC_OP_JUMP_IF,
+    BC_OP_PHI,
 
     BC_OP_CALL,
     BC_OP_RETURN,
@@ -167,6 +185,9 @@ struct SBCCode {
             BCValue *args;
             u32 num_args;
         };
+        struct {
+            BCValue phi_value;
+        };
     };
 };
 
@@ -176,6 +197,7 @@ struct SBCBlock {
 
     BCCode *code;
     BCValue input;
+    void *backend_data;
 };
 
 struct SBCFunction {
@@ -195,11 +217,15 @@ struct SBCFunction {
     u32 last_temporary;
     u32 last_block_serial;
     u32 stack_size;
+
+    void *backend_data;
 };
 
 struct SBCContext {
     BCType *arrays;
     BCType *aggregates;
+    BCValue *strings;
+
     BCFunction *functions;
     u32 global_size;
 };
@@ -244,6 +270,10 @@ BCValue bc_insn_ge(BCFunction function, BCValue arg1, BCValue arg2);
 
 BCCode bc_insn_jump(BCFunction function, BCBlock block);
 BCCode bc_insn_jump_if(BCFunction function, BCValue cond, BCBlock block_true, BCBlock block_false);
+
+BCValue bc_insn_phi(BCFunction function, BCType type);
+
+void bc_insn_phi_add_incoming(BCValue phi, BCValue *values, BCBlock *blocks, u32 num_incoming);
 
 BCValue bc_insn_call(BCFunction function, BCValue target, BCValue *args, u32 num_args);
 BCValue bc_insn_return(BCFunction function, BCValue value);
@@ -300,5 +330,6 @@ void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
 bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_source(BCContext context, FILE *f);
+bool bc_generate_llvm(BCContext context, FILE *f);
 
 void bc_register_utest(void);

@@ -80,59 +80,40 @@ static void bc_generate_base_value(BCValue value, FILE *f) {
 }
 
 static void bc_generate_value(BCValue value, FILE *f) {
-    if (value->flags & BC_VALUE_IS_CONSTANT) {
-
-        if (value->type->kind == BC_TYPE_BASE) {
+    switch (value->kind) {
+        case BC_VALUE_CONSTANT:
+            assert(value->type->kind == BC_TYPE_BASE);
             fprintf(f, "((");
             bc_generate_type(value->type, f);
             fprintf(f, ")(");
             bc_generate_base_value(value, f);
             fprintf(f, "))");
-
-        } else {
-            assert(value->type->kind == BC_TYPE_AGGREGATE);
-            assert(string_match(value->type->name, str("string")));
-
+            break;
+        case BC_VALUE_STRING:
+            fprintf(f, "(&__string_%llu)", value->string_index);
+            break;
+        case BC_VALUE_PARAMETER:
+            fprintf(f, "param%llu", value->storage);
+            break;
+        case BC_VALUE_TEMPORARY:
+            fprintf(f, "V%llu", value->storage);
+            break;
+        case BC_VALUE_PHI:
+            fprintf(f, "V%llu", value->phi_result->storage);
+            break;
+        case BC_VALUE_LOCAL:
+            fprintf(f, "(&L%llu)", value->storage);
+            break;
+        case BC_VALUE_GLOBAL:
             fprintf(f, "((");
             bc_generate_type(value->type, f);
-
-            u64 length = value->string.length;
-            if (length > 0)
-                length--;
-
-            fprintf(f, "){.length = %llu, .data = (u8*)", length);
-            fprintf(f, "\"%.*s\"})", strp(value->string));
+            fprintf(f, ")(&GLOBAL_VARIABLES[%llu]))", value->storage);
+            break;
+        case BC_VALUE_FUNCTION: {
+            BCFunction function = (BCFunction) value->storage;
+            fprintf(f, "%.*s", strp(function->name));
+            break;
         }
-
-        return;
-    }
-
-    if (value->flags & BC_VALUE_IS_PARAMETER) {
-        fprintf(f, "param%llu", value->storage);
-        return;
-    }
-
-    if (value->flags & BC_VALUE_IS_TEMPORARY) {
-        fprintf(f, "V%llu", value->storage);
-        return;
-    }
-
-    if (value->flags & BC_VALUE_IS_ON_STACK) {
-        fprintf(f, "(&L%llu)", value->storage);
-        return;
-    }
-
-    if (value->flags & BC_VALUE_IS_GLOBAL) {
-        fprintf(f, "((");
-        bc_generate_type(value->type, f);
-        fprintf(f, ")(&GLOBAL_VARIABLES[%llu]))", value->storage);
-        return;
-    }
-
-    if (value->flags & BC_VALUE_IS_FUNCTION) {
-        BCFunction function = (BCFunction) value->storage;
-        fprintf(f, "%.*s", strp(function->name));
-        return;
     }
 }
 
@@ -185,6 +166,7 @@ static void bc_generate_code(BCCode code, FILE *f) {
                     type = type->base;
                     fprintf(f, "->");
                 } else {
+                    assert(false);
                     fprintf(f, ".");
                 }
 
@@ -243,12 +225,16 @@ static void bc_generate_code(BCCode code, FILE *f) {
                 bc_generate_value(code->regC, f);
                 fprintf(f, "; ");
             }
+
             fprintf(f, "goto __block%llu;", code->bbT->serial);
             break;
         case BC_OP_JUMP_IF:
             fprintf(f, "if (");
             bc_generate_value(code->regC, f);
             fprintf(f, ") goto __block%llu; else goto __block%llu;", code->bbT->serial, code->bbF->serial);
+            break;
+        case BC_OP_PHI:
+            fprintf(f, "// Phi is resolved here.");
             break;
         case BC_OP_CALL: {
             if (code->result->type != bc_type_void) {
@@ -334,10 +320,11 @@ static void bc_generate_function(BCFunction function, FILE *f) {
 
     for (BCBlock block = function->first_block; block; block = block->next) {
         if (block->input) {
+            fprintf(f, "    ");
             bc_generate_type(block->input->type, f);
             fprintf(f, " ");
             bc_generate_value(block->input, f);
-            fprintf(f, ";\n");
+            fprintf(f, "; // Phi value.\n");
         }
     }
 
@@ -393,6 +380,19 @@ bool bc_generate_source(BCContext context, FILE *f) {
 
     vector_foreach(BCType, aggregate_ptr, context->aggregates)
             bc_generate_aggregate(*aggregate_ptr, f);
+
+    fprintf(f, "\n\n");
+
+    vector_foreach(BCValue, string_ptr, context->strings) {
+        BCValue string = *string_ptr;
+        fprintf(f, "static string __string_%llu = {", string->string_index);
+        u64 length = string->string.length;
+        if (length > 0)
+            length--;
+
+        fprintf(f, ".length = %llu, .data = (u8*)", length);
+        fprintf(f, "\"%.*s\"};\n", strp(string->string));
+    }
 
     fprintf(f, "\n\n");
 

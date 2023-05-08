@@ -1,0 +1,4 @@
+
+fun main(argc: i32, argv: u8**): i32 {
+    return __atcc_start(argc, argv);
+}

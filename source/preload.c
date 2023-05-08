@@ -5,7 +5,7 @@ extern const char preload_source[];
 extern const size_t preload_source_len;
 
 const char preload_source[] =
-"alias bool = i8;\n"
+"alias bool = i32;\n"
 "\n"
 "const true  := cast(bool) 1;\n"
 "const false := cast(bool) 0;\n"
@@ -61,9 +61,7 @@ const char preload_source[] =
 "\n"
 "fun print(message: string) {\n"
 "    puts(cast(u8*) message.data);\n"
-"}\n"
-"\n"
-"";
+"}";
 
 const size_t preload_source_len = sizeof(preload_source) - 1;
 #endif

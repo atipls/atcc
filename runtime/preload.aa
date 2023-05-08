@@ -1,4 +1,4 @@
-alias bool = i8;
+alias bool = i32;
 
 const true  := cast(bool) 1;
 const false := cast(bool) 0;
@@ -55,4 +55,3 @@ fun assert(condition: bool, message: string) {
 fun print(message: string) {
     puts(cast(u8*) message.data);
 }
-

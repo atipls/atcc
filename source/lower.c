@@ -37,6 +37,7 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
             }
 
             BCType function_type = bc_type_function(result, parameters, vector_len(parameters));
+            function_type->is_variadic = type->function_is_variadic;
 
             pointer_table_set(&context->types, type, function_type);
             return function_type;
@@ -171,33 +172,40 @@ static BCValue build_expression_unary(BuildContext *context, ASTNode *expression
 }
 
 static BCValue build_expression_logical_and(BuildContext *context, ASTNode *expression) {
-    BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
-    BCValue c1 = bc_value_make_consti(bc_type_u32, 1);
-
     BCBlock eval_right = bc_block_make(context->function);
     BCBlock set0 = bc_block_make(context->function);
     BCBlock set1 = bc_block_make(context->function);
     BCBlock last = bc_block_make(context->function);
 
+    BCValue c0 = bc_value_make_consti(bc_type_i32, 0);
+    BCValue c1 = bc_value_make_consti(bc_type_i32, 1);
+
     BCValue binary_l = build_expression(context, expression->binary_left);
-    BCValue comparison = bc_insn_ne(context->function, binary_l, c0);
-    bc_insn_jump_if(context->function, comparison, eval_right, set0);
+    BCValue comparison_l = bc_insn_ne(context->function, binary_l, c0);
+    bc_insn_jump_if(context->function, comparison_l, eval_right, set0);
 
     bc_function_set_block(context->function, eval_right);
     BCValue binary_r = build_expression(context, expression->binary_right);
-    comparison = bc_insn_ne(context->function, binary_r, c0);
-    bc_insn_jump_if(context->function, comparison, set1, set0);
+    BCValue comparison_r = bc_insn_ne(context->function, binary_r, c0);
+    bc_insn_jump_if(context->function, comparison_r, set1, set0);
 
     bc_function_set_block(context->function, set0);
-    bc_insn_jump(context->function, last)->regC = c0;
+    bc_insn_jump(context->function, last);
 
     bc_function_set_block(context->function, set1);
-    bc_insn_jump(context->function, last)->regC = c1;
+    bc_insn_jump(context->function, last);
 
     bc_function_set_block(context->function, last);
-    last->input = bc_value_make(context->function, bc_type_i32);
 
-    return last->input;
+    BCValue phi = bc_insn_phi(context->function, bc_type_i32);
+
+    BCValue phi_values[] = { c0, c1 };
+    BCBlock phi_blocks[] = { set0, set1 };
+
+    bc_insn_phi_add_incoming(phi, phi_values, phi_blocks, 2);
+    last->input = phi->phi_result;
+
+    return phi->phi_result;
 }
 
 static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expression) {
@@ -225,9 +233,16 @@ static BCValue build_expression_logical_or(BuildContext *context, ASTNode *expre
     bc_insn_jump(context->function, last)->regC = c1;
 
     bc_function_set_block(context->function, last);
-    last->input = bc_value_make(context->function, bc_type_u32);
 
-    return last->input;
+    BCValue phi = bc_insn_phi(context->function, bc_type_i32);
+
+    BCValue phi_values[] = {c0, c1};
+    BCBlock phi_blocks[] = {set0, set1};
+
+    bc_insn_phi_add_incoming(phi, phi_values, phi_blocks, 2);
+    last->input = phi->phi_result;
+
+    return phi->phi_result;
 }
 
 static BCValue build_expression_binary_values(BuildContext *context, TokenKind kind, BCValue binary_l, BCValue binary_r,
@@ -298,18 +313,26 @@ static BCValue build_expression_ternary(BuildContext *context, ASTNode *expressi
 
     bc_function_set_block(context->function, cond_t);
     BCValue value_t = build_expression(context, expression->ternary_true);
-    bc_insn_jump(context->function, last)->regC = value_t;
+    bc_insn_jump(context->function, last);
+    cond_t = bc_function_get_block(context->function);
 
     bc_function_set_block(context->function, cond_f);
     BCValue value_f = build_expression(context, expression->ternary_false);
-    bc_insn_jump(context->function, last)->regC = value_f;
+    bc_insn_jump(context->function, last);
+    cond_f = bc_function_get_block(context->function);
 
     bc_function_set_block(context->function, last);
 
     BCType type = build_convert_type(context, node_type(expression));
-    last->input = bc_value_make(context->function, type);
+    BCValue phi = bc_insn_phi(context->function, type);
 
-    return last->input;
+    BCValue phi_values[] = {value_t, value_f};
+    BCBlock phi_blocks[] = {cond_t, cond_f};
+
+    bc_insn_phi_add_incoming(phi, phi_values, phi_blocks, 2);
+    last->input = phi->phi_result;
+
+    return phi->phi_result;
 }
 
 static BCValue build_expression_cast(BuildContext *context, ASTNode *expression) {
@@ -439,15 +462,11 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
                                                            ? bc_value_make_constf(type, expression->literal_as_f64)
                                                            : bc_value_make_consti(type, expression->literal_as_u64);
         case AST_EXPRESSION_LITERAL_CHAR: return bc_value_make_consti(type, expression->literal_as_u64);
-        case AST_EXPRESSION_LITERAL_STRING: {
-            BCValue string = bc_value_make_consti(type, 0);
-            string->string = expression->literal_value;
-            return string;
-        }
+        case AST_EXPRESSION_LITERAL_STRING: return bc_insn_load(context->function, build_expression_lvalue(context, expression));
         case AST_EXPRESSION_IDENTIFIER: {
             // TODO: Constant checks, string checks, pointer checks.
             BCValue resolved = build_resolve_name(context, expression->value);
-            if (resolved->flags & (BC_VALUE_IS_ON_STACK | BC_VALUE_IS_GLOBAL))
+            if (resolved->kind == BC_VALUE_LOCAL || resolved->kind == BC_VALUE_GLOBAL || resolved->kind == BC_VALUE_STRING)
                 resolved = bc_insn_load(context->function, resolved);
             return resolved;
         }
@@ -489,44 +508,43 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             assert(!"unreachable");
             return null;
         }
+        case AST_EXPRESSION_LITERAL_STRING: {
+            BCType type = build_convert_type(context, node_type(expression));
+            return bc_value_make_string(context->bc, type, expression->literal_value);
+        }
         case AST_EXPRESSION_IDENTIFIER: {
             // TODO: Pointer constants can be lvalues too.
             BCValue resolved = build_resolve_name(context, expression->value);
-            assert(!(resolved->flags & BC_VALUE_IS_CONSTANT));
-
-            // Copy the parameter to the stack if it's used as an lvalue.
-            // TODO: Maybe don't do this?
-            if (resolved->flags & BC_VALUE_IS_PARAMETER) {
-                BCValue local = bc_function_define(context->function, resolved->type);
-                bc_insn_store(context->function, local, resolved);
-
-                return local;
-            }
-
+            assert(resolved->kind != BC_VALUE_CONSTANT);
             return resolved;
         }
         // case AST_EXPRESSION_CALL: return null;
         case AST_EXPRESSION_FIELD: {
-            Type *type = node_type(expression->field_target);
-            BCValue target = null;
+            BCValue target = build_expression_lvalue(context, expression->field_target);
+            BCType type = target->type;
 
-            // Dereference the target if it's a pointer.
-            if (type->kind == TYPE_POINTER) {
-                target = build_expression(context, expression->field_target);
-                type = type->base_type;
-            } else if (type->kind == TYPE_STRING)
-                target = build_expression(context, expression->field_target);
-            else
-                target = build_expression_lvalue(context, expression->field_target);
+            assert(type->kind == BC_TYPE_POINTER);
 
-            assert(type->kind == TYPE_AGGREGATE || type->kind == TYPE_STRING || type->kind == TYPE_ARRAY);
+            type = type->base;
 
-            if (type->kind == TYPE_AGGREGATE) {
+            // Field needs a pointer by default.
+            // Double pointer? Dereference.
+            if (type->kind == BC_TYPE_POINTER) {
+                type = type->base;
+                target = bc_insn_load(context->function, target);
+            }
+
+            assert(type->kind == BC_TYPE_AGGREGATE || type->kind == BC_TYPE_ARRAY);
+
+
+            if (type->kind == BC_TYPE_AGGREGATE) {
                 BCType field_type = null;
                 u64 field_index = 0;
-                vector_foreach(TypeField, field, type->fields) {
-                    if (string_match(expression->field_name, field->name)) {
-                        field_type = build_convert_type(context, field->type);
+
+                for (u32 i = 0; i < type->num_members; i++) {
+                    BCAggregate *member = &type->members[i];
+                    if (string_match(expression->field_name, member->name)) {
+                        field_type = member->type;
                         break;
                     }
                     field_index++;
@@ -536,7 +554,7 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
                 return bc_insn_get_field(context->function, target, field_type, field_index);
             }
 
-            if (type->kind == TYPE_STRING || type->kind == TYPE_ARRAY) {
+            if (type->kind == BC_TYPE_ARRAY) {
                 BCType field_type = null;
                 u64 field_index = 0;
                 if (string_match(expression->field_name, str("length"))) {
@@ -545,7 +563,7 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
                 } else if (string_match(expression->field_name, str("data"))) {
                     field_index = 1;
                     field_type = type->kind == TYPE_ARRAY
-                                         ? bc_type_pointer(build_convert_type(context, type->array_base))
+                                         ? bc_type_pointer(type->element)
                                          : bc_type_pointer(bc_type_u8);
                 } else
                     assert(!"unreachable");
@@ -617,6 +635,7 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
 #endif
             // For pointers, we don't need to get the data pointer.
             else {
+                assert(type->kind == TYPE_POINTER);
                 BCValue target = build_expression(context, expression->index_target);
                 BCType element_type = build_convert_type(context, type->base_type);
                 return bc_insn_get_index(context->function, target, element_type, index);
@@ -641,7 +660,7 @@ static void build_statement_if(BuildContext *context, ASTNode *statement) {
 
     BCBlock cond_t = bc_block_make(context->function);
     BCBlock cond_f = bc_block_make(context->function);
-    BCBlock last = bc_block_make(context->function);
+    BCBlock last = null;
 
     BCValue condition = statement->if_condition ? build_expression(context, statement->if_condition)
                                                 : string_table_get(&context->locals, statement->init_name);
@@ -651,16 +670,20 @@ static void build_statement_if(BuildContext *context, ASTNode *statement) {
     bc_function_set_block(context->function, cond_t);
     build_statement(context, statement->if_true);
     cond_t = bc_function_get_block(context->function);
-    if (!bc_block_is_terminated(cond_t))
+    if (!bc_block_is_terminated(cond_t)) {
+        if (!last) last = bc_block_make(context->function);
         bc_insn_jump(context->function, last);
+    }
 
     bc_function_set_block(context->function, cond_f);
     if (statement->if_false) build_statement(context, statement->if_false);
     cond_f = bc_function_get_block(context->function);
-    if (!bc_block_is_terminated(cond_f))
+    if (!bc_block_is_terminated(cond_f)) {
+        if (!last) last = bc_block_make(context->function);
         bc_insn_jump(context->function, last);
+    }
 
-    bc_function_set_block(context->function, last);
+    if (last) bc_function_set_block(context->function, last);
 }
 
 static void build_statement_while(BuildContext *context, ASTNode *statement) {
@@ -727,7 +750,6 @@ static void build_statement_do_while(BuildContext *context, ASTNode *statement) 
 }
 
 static void build_statement_for(BuildContext *context, ASTNode *statement) {
-
     BCBlock cond = bc_block_make(context->function);
     BCBlock body = bc_block_make(context->function);
     BCBlock loop = bc_block_make(context->function);
@@ -736,12 +758,13 @@ static void build_statement_for(BuildContext *context, ASTNode *statement) {
     BCBlock old_break_target = context->break_target;
     BCBlock old_continue_target = context->continue_target;
 
+    context->break_target = last;
+    context->continue_target = loop;
+
     if (statement->for_initializer) build_statement(context, statement->for_initializer);
 
     bc_insn_jump(context->function, cond);
-
     bc_function_set_block(context->function, cond);
-
     if (statement->for_condition) {
         BCValue c0 = bc_value_make_consti(bc_type_u32, 0);
         BCValue condition = build_expression(context, statement->for_condition);
@@ -753,17 +776,13 @@ static void build_statement_for(BuildContext *context, ASTNode *statement) {
 
     bc_function_set_block(context->function, body);
 
-    context->break_target = last;
-    context->continue_target = cond;
-
     build_statement(context, statement->for_body);
 
-    body = bc_function_get_block(context->function);
-    if (!bc_block_is_terminated(body))
-        bc_insn_jump(context->function, loop);
+    bc_insn_jump(context->function, loop);
 
     bc_function_set_block(context->function, loop);
     if (statement->for_increment) build_statement(context, statement->for_increment);
+
     bc_insn_jump(context->function, cond);
 
     bc_function_set_block(context->function, last);
@@ -821,6 +840,9 @@ static void build_statement_switch(BuildContext *context, ASTNode *statement) {
 
         bc_function_set_block(context->function, next_block);
     }
+
+    if (!bc_block_is_terminated(bc_function_get_block(context->function)))
+        bc_insn_jump(context->function, break_target);
 
     bc_function_set_block(context->function, break_target);
     context->break_target = old_break_target;
@@ -884,6 +906,9 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
 }
 
 static void build_function(BuildContext *context, ASTNode *function) {
+    if (string_match(function->function_name, str("__atcc_init_globals")))
+        return;
+
     string_table_destroy(&context->locals);
 
     BCValue function_value = string_table_get(&context->functions, function->function_name);
@@ -896,14 +921,16 @@ static void build_function(BuildContext *context, ASTNode *function) {
     }
 
     for (u32 i = 0; i < context->function->signature->num_params; i++) {
-        // TODO: Should function parameters be lvalues?
-
         ASTNode *parameter = function->function_parameters[i];
         BCValue value = bc_value_get_parameter(context->function, i);
-        string_table_set(&context->locals, parameter->function_parameter_name, value);
+        BCValue pointer = bc_function_define(context->function, value->type);
+        bc_insn_store(context->function, pointer, value);
+
+        string_table_set(&context->locals, parameter->function_parameter_name, pointer);
     }
 
     build_statement(context, function->function_body);
+
     // TODO: For void return types, we should build the instruction on unterminated blocks.
 
     if (verbose & VERBOSE_BYTECODE) {
@@ -938,6 +965,18 @@ static void build_declaration(BuildContext *context, ASTNode *declaration) {
 }
 
 static void build_preload_function(BuildContext *context, ASTNode *function) {
+    if (string_match(function->function_name, str("__atcc_init_globals"))) {
+        BCValue bc_function_value = null;
+        bc_function_value = make(struct SBCValue);
+        bc_function_value->kind = BC_VALUE_FUNCTION;
+        bc_function_value->type = context->initializer->signature;
+        bc_function_value->storage = (u64) context->initializer;
+
+        string_table_set(&context->functions, function->function_name, bc_function_value);
+
+        return;
+    }
+
     Type *type = node_type(function);
 
     u32 num_params = vector_len(type->function_parameters);
@@ -946,10 +985,12 @@ static void build_preload_function(BuildContext *context, ASTNode *function) {
         params[i] = build_convert_type(context, type->function_parameters[i]);
 
     BCType function_type = bc_type_function(build_convert_type(context, type->function_return_type), params, num_params);
+    function_type->is_variadic = function->function_is_variadic;
+
     BCFunction bc_function = bc_function_create(context->bc, function_type, function->function_name);
     BCValue bc_function_value = null;
     bc_function_value = make(struct SBCValue);
-    bc_function_value->flags = BC_VALUE_IS_FUNCTION;
+    bc_function_value->kind = BC_VALUE_FUNCTION;
     bc_function_value->type = function_type;
     bc_function_value->storage = (u64) bc_function;
     bc_function->is_variadic = function->function_is_variadic;
@@ -970,8 +1011,14 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
             printf("\n");
         }
 
+        if (type->kind == TYPE_STRING) {
+            BCValue constant_value = bc_value_make_string(context->bc, variable_type, rawstr(value.string.data, value.string.length));
+            string_table_set(&context->globals, variable->variable_name, constant_value);
+            return;
+        }
+
         BCValue constant_value = make(struct SBCValue);
-        constant_value->flags = BC_VALUE_IS_CONSTANT;
+        constant_value->kind = BC_VALUE_CONSTANT;
         constant_value->type = variable_type;
 
         switch (type->kind) {
@@ -985,7 +1032,6 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
             case TYPE_U64: constant_value->storage = value.u64; break;
             case TYPE_F32: constant_value->floating = value.f32; break;
             case TYPE_F64: constant_value->floating = value.f64; break;
-            case TYPE_STRING: constant_value->string = rawstr(value.string.data, value.string.length); break;
             default: assert(!"unimplemented");
         }
 
@@ -994,7 +1040,7 @@ static void build_preload_variable(BuildContext *context, ASTNode *variable) {
         string_table_set(&context->globals, variable->variable_name, constant_value);
     } else {
         BCValue global_value = make(struct SBCValue);
-        global_value->flags = BC_VALUE_IS_GLOBAL;
+        global_value->kind = BC_VALUE_GLOBAL;
         global_value->type = bc_type_pointer(variable_type);
         global_value->storage = context->bc->global_size;
         context->bc->global_size += variable_type->size;

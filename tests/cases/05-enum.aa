@@ -44,6 +44,12 @@ fun SimpleEnumTest2() {
 }
 
 fun SimpleEnumTest3() {
+    assertIs(EnumA == EnumD);
+    assertIs(EnumB == EnumE);
+    assertIs(EnumC == EnumF);
+}
+
+fun SimpleEnumTest4() {
     assertIs(EnumG == 10);
     assertIs(EnumH == 11);
 }

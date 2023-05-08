@@ -78,10 +78,12 @@ fun GetCursorPosition(ifd: i32, ofd: i32, row: i32*, column: i32*): bool {
     }
     escape_sequence[i] = 0;
     printf("escape_sequence: %d\n".data, escape_sequence.length);
-
+    printf("data 1: %d %c, data 2: %d %c\n".data, escape_sequence[0] == '\x1b', escape_sequence[0],
+                                            escape_sequence[1] == '[', escape_sequence[1]);
+    printf("raw data 1: %d, raw data 2: %d\n".data, escape_sequence[0], escape_sequence[1]);
 
     // Parse the escape sequence.
-    if (escape_sequence[0] != '\x1b' || escape_sequence[1] != '[') return false;
+    if (escape_sequence[0] != KEY_ESCAPE || escape_sequence[1] != '[') return false;
     if (sscanf(&escape_sequence[2], "%d;%d".data, row, column) != 2) return false;
 
     return true;
