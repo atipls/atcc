@@ -390,8 +390,18 @@ bool bc_generate_source(BCContext context, FILE *f) {
         if (length > 0)
             length--;
 
-        fprintf(f, ".length = %llu, .data = (u8*)", length);
-        fprintf(f, "\"%.*s\"};\n", strp(string->string));
+        fprintf(f, ".length = %llu, .data = (u8*)\"", length);
+
+        for (u32 i = 0; i < string->string.length; i++) {
+            u8 character = string->string.data[i];
+            if (character < 32 || character > 126) {
+                fprintf(f, "\\x%02X", character);
+            } else {
+                fprintf(f, "%c", character);
+            }
+        }
+
+        fprintf(f, "\"};\n");
     }
 
     fprintf(f, "\n\n");

@@ -76,10 +76,10 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
             }
         }
         case TYPE_AGGREGATE: {
-            assert(type->is_complete);
-
             string name = type->owner->aggregate_name;
             BCType aggregate = string_table_get(&context->aggregates, name);
+
+            if (!type->is_complete) return aggregate;
             if (!aggregate) {
                 aggregate = bc_type_aggregate(context->bc, name);
                 string_table_set(&context->aggregates, name, aggregate);
@@ -199,8 +199,8 @@ static BCValue build_expression_logical_and(BuildContext *context, ASTNode *expr
 
     BCValue phi = bc_insn_phi(context->function, bc_type_i32);
 
-    BCValue phi_values[] = { c0, c1 };
-    BCBlock phi_blocks[] = { set0, set1 };
+    BCValue phi_values[] = {c0, c1};
+    BCBlock phi_blocks[] = {set0, set1};
 
     bc_insn_phi_add_incoming(phi, phi_values, phi_blocks, 2);
     last->input = phi->phi_result;

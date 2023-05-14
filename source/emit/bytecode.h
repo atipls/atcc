@@ -330,6 +330,7 @@ void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
 bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_source(BCContext context, FILE *f);
-bool bc_generate_llvm(BCContext context, FILE *f);
+
+bool bc_generate_llvm(BCContext context, string file);
 
 void bc_register_utest(void);

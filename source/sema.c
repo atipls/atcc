@@ -724,6 +724,13 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 expression->constant = eval_expression(entry->node->variable_initializer);
             }
 
+            if (entry->node->kind == AST_DECLARATION_AGGREGATE) {
+                if (!sema_complete_aggregate(context, entry->type)) {
+                    sema_errorf(context, expression, "incomplete type '%.*s'", strp(entry->node->value));
+                    return null;
+                }
+            }
+
             expression->base_type = entry->type;
             return entry->type;
         }

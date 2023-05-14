@@ -4,20 +4,23 @@ fun Fibonacci(nth: i32): i32 {
     return Fibonacci(nth - 1) + Fibonacci(nth - 2);
 }
 
-fun memset(v: void*, val: u8, len: u32): void*;
+fun memset(v: void*, val: i32, len: u32): void*;
 fun free(ptr: void*): void;
 
 fun NumPrimesLessThan(nth: i32): i32 {
     count := 0;
 
+    printf("malloc(%d)\n".data, nth);
+
     flags := malloc(nth);
     memset(flags, 1, cast(u32) nth);
 
     for (i := 2; i < nth; i += 1) {
-        if (flags[i] == 1) {
+        if (flags[i] == cast(u8) 1) {
             count += 1;
             for (j := i + i; j < nth; j += i) {
-                flags[j] = 0;
+                // printf("i=%d, j=%d\n".data, i, j);
+                flags[j] = cast(u8) 0;
             }
         }
     }

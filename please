@@ -134,13 +134,14 @@ def llvm(arguments):
 
     clion([])  # Make sure the compiler is built.
 
-    execute(["./build/debug/atcc", "-b", "llvm", *arguments])
-
+    execute(["./build/debug/atcc", "-b", "llvm", "runtime/llvm.aa", *arguments])
+    execute(["clang", "-O3", *DISABLED_WARNINGS, "-o", "program", "generated.o"])
+    execute(["./program"])
 
 def main(args):
     if len(args) < 1:
-        print("Please specify a command.")
-        print("Available commands:")
+        print("[please] Please specify a command.")
+        print("[please] Available commands:")
         for command in commands:
             print(f"  {command}: {commands[command].__doc__}")
         return
@@ -150,9 +151,9 @@ def main(args):
 
     if handler := commands.get(command):
         handler(arguments)
-        print("Done.")
+        print("[please] Done.")
     else:
-        print(f"Unknown command: {command}")
+        print(f"[please] Unknown command: {command}")
 
 
 if __name__ == '__main__':

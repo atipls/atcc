@@ -94,11 +94,9 @@ static void lexer_build_number(Lexer *lexer, Token *token) {
                 token->kind = TOKEN_NUMBER;
                 token->value = rawstr(buffer, vector_len(buffer));
                 lexer->offset--; // Make sure .. lexes properly.
-                
                 return;
             }
         }
-        
         vector_push(buffer, lexer_read(lexer));
     }
 
@@ -108,8 +106,38 @@ static void lexer_build_number(Lexer *lexer, Token *token) {
 
 static void lexer_build_string_or_char(Lexer *lexer, Token *token, i8 terminator) {
     i8 *buffer = null;
-    while (lexer_peek(lexer) != terminator)
-        vector_push(buffer, lexer_read(lexer));
+    while (lexer_peek(lexer) != terminator) {
+        i8 character = lexer_read(lexer);
+        if (character == '\\') {
+            i8 maybe_escape = lexer_read(lexer);
+            switch (maybe_escape) {
+                case 'n': vector_push(buffer, '\n'); break;
+                case 'r': vector_push(buffer, '\r'); break;
+                case 't': vector_push(buffer, '\t'); break;
+                case '0': vector_push(buffer, '\0'); break;
+                case '\\': vector_push(buffer, '\\'); break;
+                case '\'': vector_push(buffer, '\''); break;
+                case '"': vector_push(buffer, '"'); break;
+                case 'x':
+                case 'X': {
+                    u8 hex_digit = 0;
+                    while (isxdigit(lexer_peek(lexer))) {
+                        u8 hex_character = lexer_read(lexer);
+                        u8 number = isdigit(hex_character) ? hex_character - '0' : hex_character - 'A' + 10;
+                        hex_digit = hex_digit * 16 + number;
+                    }
+                    vector_push(buffer, hex_digit);
+                    break;
+                }
+                default:
+                    vector_push(buffer, character);
+                    vector_push(buffer, maybe_escape);
+                    break;
+            }
+        } else {
+            vector_push(buffer, character);
+        }
+    }
 
     lexer_read(lexer);
     vector_push(buffer, '\0');
@@ -287,7 +315,7 @@ Token *lexer_tokenize(string filename, Buffer data) {
                 break;
             }
             default:
-                printf("Character: '%c' (%u)\n", character, (u8)character);
+                printf("Character: '%c' (%u)\n", character, (u8) character);
                 break;
         }
     }

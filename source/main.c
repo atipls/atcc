@@ -172,11 +172,9 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
             fprintf(stderr, "Generating AMD64 failed.\n");
         fclose(file);
     } else if (string_match(backend, str("llvm"))) {
-        string outpath = string_format(str("%.*s.ll"), strp(output));
-        FILE *file = fopen(string_to_cstring(outpath), "wb");
-        if (!bc_generate_llvm(build_context->bc, file))
+        string outpath = string_format(str("%.*s.o"), strp(output));
+        if (!bc_generate_llvm(build_context->bc, outpath))
             fprintf(stderr, "Generating LLVM failed.\n");
-        fclose(file);
     } else {
         fprintf(stderr, "Unknown backend: %.*s\n", strp(backend));
         return 1;

@@ -541,8 +541,6 @@ static void bc_generate_function(LLVMContext *context, BCFunction function) {
         printf("\n\n\n");
         fflush(stdout);
 
-        void bc_dump_function(BCFunction function, FILE *f);
-
         printf("\n\n\nBC:\n\n\n");
         bc_dump_function(function, stdout);
         printf("\n\n\n");
@@ -552,7 +550,7 @@ static void bc_generate_function(LLVMContext *context, BCFunction function) {
     fflush(stdout);
 }
 
-bool bc_generate_llvm(BCContext bc, FILE *f) {
+bool bc_generate_llvm(BCContext bc, string file) {
     LLVMInitializeAllTargetInfos();
     LLVMInitializeAllTargets();
     LLVMInitializeAllTargetMCs();
@@ -579,7 +577,7 @@ bool bc_generate_llvm(BCContext bc, FILE *f) {
     }
 
     char *errors = null;
-    LLVMPrintModuleToFile(context->module, "result.ll", &errors);
+    // LLVMPrintModuleToFile(context->module, "result.ll", &errors);
 
     cstring triple = LLVMGetDefaultTargetTriple();
     LLVMTargetRef target;
@@ -592,7 +590,9 @@ bool bc_generate_llvm(BCContext bc, FILE *f) {
     LLVMSetDataLayout(context->module, datalayout_str);
     LLVMDisposeMessage(datalayout_str);
 
-    LLVMTargetMachineEmitToFile(machine, context->module, (char *)"result.o\0", LLVMObjectFile, &errors);
+    cstring output_file = string_to_cstring(file);
+    LLVMTargetMachineEmitToFile(machine, context->module, output_file, LLVMObjectFile, &errors);
+
     if (errors) LLVMDisposeMessage(errors);
 
     return true;

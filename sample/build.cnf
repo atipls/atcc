@@ -1,9 +1,9 @@
 project-name = "my-project"
 project-type = "executable"
 main-module  = "Editor"
-backend      = "c" # or "arm64" or "amd64"
+backend      = "c" # "c" or "arm64" or "amd64" or "llvm"
 build        = "debug" # or "release"
-verbose      = "8191"
+verbose      = "0" # 8191
 
 files = [
     "source/editor.aa",

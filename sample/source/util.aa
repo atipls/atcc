@@ -65,7 +65,7 @@ fun ReadKey(fd: i32): i32 {
 }
 
 fun GetCursorPosition(ifd: i32, ofd: i32, row: i32*, column: i32*): bool {
-    write(ofd, "\x1b[6n".data, cast(u64) 4);
+    write(ofd, "\x1B[6n".data, cast(u64) 4);
 
     escape_sequence: u8[32];
 
@@ -77,10 +77,6 @@ fun GetCursorPosition(ifd: i32, ofd: i32, row: i32*, column: i32*): bool {
         i += 1;
     }
     escape_sequence[i] = 0;
-    printf("escape_sequence: %d\n".data, escape_sequence.length);
-    printf("data 1: %d %c, data 2: %d %c\n".data, escape_sequence[0] == '\x1b', escape_sequence[0],
-                                            escape_sequence[1] == '[', escape_sequence[1]);
-    printf("raw data 1: %d, raw data 2: %d\n".data, escape_sequence[0], escape_sequence[1]);
 
     // Parse the escape sequence.
     if (escape_sequence[0] != KEY_ESCAPE || escape_sequence[1] != '[') return false;
@@ -94,14 +90,12 @@ fun GetWindowSize(ifd: i32, ofd: i32, rows: i32*, columns: i32*): bool {
     original_col: i32;
 
     if (!GetCursorPosition(ifd, ofd, &original_row, &original_col)) return false;
-
-    write(ofd, "\x1b[999C\x1b[999B".data, cast(u64) 12);
-
+    write(ofd, "\x1B[999C\x1B[999B".data, cast(u64) 12);
     if (!GetCursorPosition(ifd, ofd, rows, columns)) return false;
 
     sequence: u8[32];
-    length := snprintf(&sequence[0], sequence.length, "\x1b[%d;%dH".data, original_row, original_col);
-    write(ofd, &sequence[0], cast(u64) length);
+    length := snprintf(&sequence[0], sequence.length, "\x1B[%d;%dH".data, original_row, original_col);
+    write(ofd, &sequence[0], cast(u64) length - 1);
 
     return true;
 }

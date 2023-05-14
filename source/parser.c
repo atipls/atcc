@@ -38,6 +38,13 @@ static Token *parser_consume(Parser *parser, TokenKind kind) {
 static ASTNode *make_error(Parser *parser, string message) {
     ASTNode *node = make_ast(AST_ERROR);
     node->value = message;
+
+    fprintf(stderr, "\x1b[94m%.*s:%d:%d:\x1b[0m ",
+            strp(node->location.file), node->location.line, node->location.column);
+    fprintf(stderr, "\033[31merror: \033[0m");
+    fprintf(stderr, "%.*s", strp(message));
+    fprintf(stderr, "\n");
+
     return node;
 }
 
@@ -958,7 +965,7 @@ ASTNode *parse_program(Token *tokens) {
             case AST_DECLARATION_ENUM_PLACEHOLDER: {
                 vector_push(program->declarations, declaration->enum_alias);
                 vector_foreach_ptr(ASTNode, item, declaration->enum_items)
-                    vector_push(program->declarations, *item);
+                        vector_push(program->declarations, *item);
                 break;
             }
             default: {
