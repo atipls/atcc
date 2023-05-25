@@ -25,6 +25,7 @@ void utest_register(string name, UTest *tests, u32 count) {
 }
 
 int utest_run(void) {
+#ifndef _WIN32
     sig_t old_sigsegv, old_sigabrt;
 
     old_sigsegv = signal(SIGSEGV, utest_signal_handler);
@@ -55,4 +56,9 @@ int utest_run(void) {
     signal(SIGABRT, old_sigabrt);
 
     return test_fail > 0;
+#endif
+
+	printf("The test runner is not implemented for Windows.\n");
+
+	return 1;
 }

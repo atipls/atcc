@@ -4,6 +4,17 @@
 #include "atcc.h"
 #include "ati/utils.h"
 
+#ifdef _WIN32
+#include <stdlib.h>
+#define bswap_16(x) _byteswap_ushort(x)
+#define bswap_32(x) _byteswap_ulong(x)
+#define bswap_64(x) _byteswap_uint64(x)
+#else
+#define bswap_16(x) __builtin_bswap16(x)
+#define bswap_32(x) __builtin_bswap32(x)
+#define bswap_64(x) __builtin_bswap64(x)
+#endif
+
 BCValue bc_value_make(BCFunction function, BCType type) {
     BCValue value = make(struct SBCValue);
 
@@ -428,6 +439,7 @@ static void bc_buffer_ensure(BCBuffer *buffer, u64 size) {
     }
 }
 
+
 u64 bc_emit_u8(BCBuffer *buffer, u8 value) {
     bc_buffer_ensure(buffer, 1);
 
@@ -439,7 +451,7 @@ u64 bc_emit_u8(BCBuffer *buffer, u8 value) {
 u64 bc_emit_u16(BCBuffer *buffer, u16 value) {
     bc_buffer_ensure(buffer, 2);
 
-    value = __builtin_bswap16(value);
+    value = bswap_16(value);
 
     buffer->data[buffer->size++] = (value >> 8) & 0xFF;
     buffer->data[buffer->size++] = value & 0xFF;
@@ -450,7 +462,7 @@ u64 bc_emit_u16(BCBuffer *buffer, u16 value) {
 u64 bc_emit_u32(BCBuffer *buffer, u32 value) {
     bc_buffer_ensure(buffer, 4);
 
-    value = __builtin_bswap32(value);
+    value = bswap_32(value);
 
     buffer->data[buffer->size++] = (value >> 24) & 0xFF;
     buffer->data[buffer->size++] = (value >> 16) & 0xFF;
@@ -463,7 +475,7 @@ u64 bc_emit_u32(BCBuffer *buffer, u32 value) {
 u64 bc_emit_u64(BCBuffer *buffer, u64 value) {
     bc_buffer_ensure(buffer, 8);
 
-    value = __builtin_bswap64(value);
+    value = bswap_64(value);
 
     buffer->data[buffer->size++] = (value >> 56) & 0xFF;
     buffer->data[buffer->size++] = (value >> 48) & 0xFF;
@@ -499,14 +511,14 @@ void bc_patch_u8(BCBuffer *buffer, u64 offset, u8 value) {
 }
 
 void bc_patch_u16(BCBuffer *buffer, u64 offset, u16 value) {
-    value = __builtin_bswap16(value);
+    value = bswap_16(value);
 
     buffer->data[offset + 0] = (value >> 8) & 0xFF;
     buffer->data[offset + 1] = value & 0xFF;
 }
 
 void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value) {
-    value = __builtin_bswap32(value);
+    value = bswap_32(value);
 
     buffer->data[offset + 0] = (value >> 24) & 0xFF;
     buffer->data[offset + 1] = (value >> 16) & 0xFF;
@@ -515,7 +527,7 @@ void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value) {
 }
 
 void bc_patch_u64(BCBuffer *buffer, u64 offset, u64 value) {
-    value = __builtin_bswap64(value);
+    value = bswap_64(value);
 
     buffer->data[offset + 0] = (value >> 56) & 0xFF;
     buffer->data[offset + 1] = (value >> 48) & 0xFF;

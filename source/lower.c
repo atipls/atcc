@@ -524,7 +524,6 @@ static BCValue build_expression_lvalue(BuildContext *context, ASTNode *expressio
             BCType type = target->type;
 
             assert(type->kind == BC_TYPE_POINTER);
-
             type = type->base;
 
             // Field needs a pointer by default.
@@ -895,8 +894,7 @@ static void build_statement(BuildContext *context, ASTNode *statement) {
             BCValue lhs = bc_insn_load(context->function, target);
             BCValue rhs = build_expression(context, statement->assign_value);
 
-            BCValue result = build_expression_binary_values(context, op, lhs, rhs,
-                                                            node_type(statement->assign_target),
+            BCValue result = build_expression_binary_values(context, op, lhs, rhs, node_type(statement->assign_target),
                                                             node_type(statement->assign_value));
             bc_insn_store(context->function, target, result);
             break;

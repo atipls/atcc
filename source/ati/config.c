@@ -241,7 +241,7 @@ option *options_parse(string filename, Buffer buffer) {
                     return null;
                 }
 
-                string tag = {};
+				string tag = str("");
                 if (token.kind == OPT_TOKEN_AT) {
                     token = opt_lexer_next(&lexer);
 

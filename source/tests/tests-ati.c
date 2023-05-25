@@ -1,7 +1,7 @@
-#include "basic.h"
-#include "config.h"
-#include "utest.h"
-#include "utils.h"
+#include "ati/basic.h"
+#include "ati/config.h"
+#include "ati/utest.h"
+#include "ati/utils.h"
 
 static int ati_test_variant_equality(void) {
     struct VariantTest {
@@ -110,12 +110,11 @@ static int ati_test_config_parses_and_loads_values(void) {
     return UTEST_PASS;
 }
 
-static UTest utests_ati[] = {
-        {str("variant equality"), ati_test_variant_equality},
-        {str("config parses and loads values"), ati_test_config_parses_and_loads_values},
-};
-
-
 void ati_register_utest(void) {
-    utest_register(str("ati"), utests_ati, array_length(utests_ati));
+	UTest tests[] = {
+		{ str("variant equality"), ati_test_variant_equality },
+		{ str("config parses and loads values"), ati_test_config_parses_and_loads_values },
+	};
+
+	utest_register(str("ati"), tests, array_length(tests));
 }

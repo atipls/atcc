@@ -90,3 +90,10 @@ testexec
 __pycache__/
 
 .cache/
+
+atcc.vcxproj.user
+atcc.VC*
+
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
