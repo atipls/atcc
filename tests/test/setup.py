@@ -17,7 +17,7 @@ class TestSetup:
     @staticmethod
     def setup_ci_compiler():
         execute(["mkdir", "-p", "cibuild"], ignore_result=True, with_stdout=True)
-        execute(["cmake", "-S", ".", "-B", "cibuild", "-DCMAKE_BUILD_TYPE=Release"], with_stdout=True)
+        execute(["cmake", "-S", ".", "-B", "cibuild", "-DCMAKE_BUILD_TYPE=Debug"], with_stdout=True)
         execute(["cmake", "--build", "cibuild"], with_stdout=True)
 
     @staticmethod

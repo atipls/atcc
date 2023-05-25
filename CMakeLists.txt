@@ -7,6 +7,11 @@ if (APPLE)
     set(LLVM_DIR /opt/homebrew/opt/llvm/lib/cmake/llvm)
 endif ()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(WITH_UTESTS)
+    set(TEST_SOURCES source/tests/tests-ati.c source/tests/tests-bc.c)
+endif ()
+
 add_executable(atcc
         source/ati/basic.h
         source/ati/config.c
@@ -19,8 +24,6 @@ add_executable(atcc
         source/ati/utest.h
         source/ati/utils.c
         source/ati/utils.h
-        source/ati/tests.c
-        source/debug.c
         source/emit/amd64.c
         source/emit/arm64.c
         source/emit/bcdump.c
@@ -28,14 +31,16 @@ add_executable(atcc
         source/emit/bytecode.h
         source/emit/llvm.c
         source/emit/source.c
-        source/emit/tests.c
+        source/debug.c
+        source/eval.c
         source/lexer.c
         source/lower.c
         source/main.c
         source/parser.c
         source/sema.c
         source/type.c
-        source/eval.c
+
+        ${TEST_SOURCES}
         )
 
 

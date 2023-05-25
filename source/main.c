@@ -247,13 +247,14 @@ static i32 standalone_main(i32 argc, cstring argv[]) {
 }
 
 i32 main(i32 argc, cstring argv[]) {
+#ifdef WITH_UTESTS
     if (argc > 1 && strcmp(argv[1], "--utest") == 0) {
         ati_register_utest();
         bc_register_utest();
 
         return utest_run();
     }
-
+#endif
 
     if (argc > 2 && string_match_cstring(str("--config"), argv[1]))
         return config_main(argv[2]);

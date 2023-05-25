@@ -25,6 +25,8 @@ suite = TestSuite(tests)
 suite.run()
 suite.print_results()
 
-utest = execute([compiler, "--utest"], ignore_result=True)
+if "ci" in compiler or "debug" in compiler:
+    utest = execute([compiler, "--utest"], ignore_result=True)
+    sys.exit(1 if not utest or suite.tests_did_fail() else 0)
 
-sys.exit(1 if not utest or suite.tests_did_fail() else 0)
+sys.exit(1 if suite.tests_did_fail() else 0)
