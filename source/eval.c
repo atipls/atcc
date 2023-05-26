@@ -51,12 +51,12 @@ static Variant eval_unary(ASTNode *node) {
             case TOKEN_MINUS: return variant_##T(left.T - right.T);              \
             case TOKEN_STAR: return variant_##T(left.T * right.T);               \
             case TOKEN_SLASH: return variant_##T(left.T / right.T);              \
-            case TOKEN_EQUAL_EQUAL: return variant_##T(left.T == right.T);       \
-            case TOKEN_EXCLAMATION_EQUAL: return variant_##T(left.T != right.T); \
-            case TOKEN_LESS: return variant_##T(left.T < right.T);               \
-            case TOKEN_LESS_EQUAL: return variant_##T(left.T <= right.T);        \
-            case TOKEN_GREATER: return variant_##T(left.T > right.T);            \
-            case TOKEN_GREATER_EQUAL: return variant_##T(left.T >= right.T);     \
+            case TOKEN_EQUAL_EQUAL: return variant_i32(left.T == right.T);       \
+            case TOKEN_EXCLAMATION_EQUAL: return variant_i32(left.T != right.T); \
+            case TOKEN_LESS: return variant_i32(left.T < right.T);               \
+            case TOKEN_LESS_EQUAL: return variant_i32(left.T <= right.T);        \
+            case TOKEN_GREATER: return variant_i32(left.T > right.T);            \
+            case TOKEN_GREATER_EQUAL: return variant_i32(left.T >= right.T);     \
             default: assert(!"unreachable"); return variant_none();              \
         }                                                                        \
     }

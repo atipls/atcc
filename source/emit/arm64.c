@@ -104,7 +104,7 @@ static void arm32_emit_load32(AArch64Reg dst, u32 value) {
 static void arm64_emit_load64(AArch64Reg dst, u64 value) {
     bc_emit_u32(buffer, 0xD2800000 | (u32) ((value & 0xFFFF) << 5) | dst);
     if (value & 0xFFFF0000) bc_emit_u32(buffer, 0xF2A00000 | ((value & 0xFFFF0000) >> 11) | dst);
-    if (value & 0xFFFF00000000) bc_emit_u32(buffer, 0xF2C00000 | ((value & 0xFFFF00000000) >> 27) | dst);
+    if (value & 0xFFFF00000000) bc_emit_u32(buffer, 0xF2C00000 | (u32)((value & 0xFFFF00000000) >> 27) | dst);
     if (value & 0xFFFF000000000000) bc_emit_u32(buffer, 0xF2E00000 | ((value & 0xFFFF000000000000) >> 43) | dst);
 }
 

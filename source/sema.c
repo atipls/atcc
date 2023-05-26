@@ -541,7 +541,7 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
 
     Type *type = expression->compound_type ? sema_resolve_type(context, expression->compound_type) : expected;
 
-    u32 current_default_index = 0;
+    i32 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
         ASTNode *field = *field_ptr;
 

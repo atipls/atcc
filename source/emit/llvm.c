@@ -600,9 +600,9 @@ bool bc_generate_llvm(BCContext bc, string file) {
 
 #else
 
-bool bc_generate_llvm(BCContext context, FILE *f) {
+bool bc_generate_llvm(BCContext context, string file) {
     (void) context;
-    (void) f;
+    (void) file;
 
     printf("LLVM Support not enabled.\n");
     return false;
