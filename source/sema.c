@@ -748,6 +748,17 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
             Type *target_function_type = sema_analyze_expression(context, expression->call_target);
             bool target_is_function = target_function_type->kind == TYPE_FUNCTION ||
                                       (target_function_type->kind == TYPE_POINTER && target_function_type->base_type->kind == TYPE_FUNCTION);
+            if (target_function_type->kind == TYPE_STRING) {
+                SemanticEntry *entry = sema_resolve_name(context, expression->call_target->literal_value);
+                if (!entry) {
+                    sema_errorf(context, expression, "undefined symbol '%.*s'", strp(expression->call_target->literal_value));
+                    return null;
+                }
+
+                target_function_type = entry->type;
+                target_is_function = true;
+            }
+
             if (!target_is_function) {
                 sema_errorf(context, expression->call_target, "cannot call a non-function value");
                 return null;

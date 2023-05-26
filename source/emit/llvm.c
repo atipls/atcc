@@ -389,7 +389,6 @@ static LLVMValueRef bc_generate_phi(LLVMContext *context, BCCode code) {
 static LLVMValueRef bc_generate_call(LLVMContext *context, BCCode code) {
     LLVMValueRef target = bc_generate_value(context, code->target);
     LLVMTypeRef type = bc_convert_type(context, code->target->type);
-
     if (!LLVMIsAFunction(target))
         target = LLVMBuildLoad2(context->builder, type, target, "v");
 
@@ -468,6 +467,15 @@ static LLVMValueRef bc_generate_code(LLVMContext *context, BCCode code) {
 }
 
 static void bc_generate_function_type(LLVMContext *context, BCFunction function) {
+    unsigned index = LLVMLookupIntrinsicID((cstring)function->name.data, function->name.length);
+    if (index != 0) {
+        LLVMTypeRef *param_types = make_n(LLVMTypeRef, function->signature->num_params);
+        for (u32 i = 0; i < function->signature->num_params; i++)
+            param_types[i] = bc_convert_type(context, function->signature->params[i]);
+        function->backend_data = LLVMGetIntrinsicDeclaration(context->module, index, param_types, function->signature->num_params);
+        return;
+    }
+
     BCType bc_return_type = function->signature->result;
     LLVMTypeRef return_type = bc_convert_type(context, bc_return_type);
     LLVMTypeRef *param_types = make_n(LLVMTypeRef, function->signature->num_params);
@@ -580,12 +588,17 @@ bool bc_generate_llvm(BCContext bc, string file) {
     }
 
     char *errors = null;
-    // LLVMPrintModuleToFile(context->module, "result.ll", &errors);
+    LLVMPrintModuleToFile(context->module, "result.ll", &errors);
 
-    cstring triple = LLVMGetDefaultTargetTriple();
+
+    bool intel = false;
+    cstring triple = intel ? "x86_64-pc-linux-gnu" : LLVMGetDefaultTargetTriple();
+    cstring cpu_name = intel ? "alderlake" : LLVMGetHostCPUName();
+    cstring features = intel ? "" : LLVMGetHostCPUFeatures();
+
     LLVMTargetRef target;
     LLVMGetTargetFromTriple(triple, &target, &errors);
-    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, triple, LLVMGetHostCPUName(), LLVMGetHostCPUFeatures(), LLVMCodeGenLevelAggressive, LLVMRelocStatic, LLVMCodeModelDefault);
+    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, triple, cpu_name, features, LLVMCodeGenLevelAggressive, LLVMRelocStatic, LLVMCodeModelDefault);
 
     LLVMSetTarget(context->module, triple);
     LLVMTargetDataRef datalayout = LLVMCreateTargetDataLayout(machine);

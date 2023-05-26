@@ -822,8 +822,11 @@ static ASTNode *parse_declaration_function_parameter(Parser *parser) {
 
 static ASTNode *parse_declaration_function(Parser *parser) {
     Token *name = parser_consume(parser, TOKEN_IDENTIFIER);
-    if (name == null)
-        return make_error(parser, str("Expected identifier after 'fun'."));
+    if (name == null) {
+        name = parser_consume(parser, TOKEN_STRING);
+        if (name == null)
+            return make_error(parser, str("Expected identifier or string after 'fun'."));
+    }
     if (!parser_consume(parser, TOKEN_OPEN_PAREN))
         return make_error(parser, str("Expected '(' after function name."));
 

@@ -478,7 +478,10 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
         case AST_EXPRESSION_OFFSETOF: assert(!"unimplemented"); break;
         case AST_EXPRESSION_CALL: {
             // TODO: Check if it's a function pointer.
-            BCValue target = build_expression(context, expression->call_target);
+            BCValue target;
+            if (node_type(expression->call_target)->kind == TYPE_STRING)
+                target = build_resolve_name(context, expression->call_target->literal_value);
+            else target = build_expression(context, expression->call_target);
             BCValue *args = null;
 
             vector_foreach_ptr(ASTNode, argument_ptr, expression->call_arguments) {

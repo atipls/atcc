@@ -1,6 +1,7 @@
 #include "ati/utils.h"
 #include "bytecode.h"
 #include <assert.h>
+#include <ctype.h>
 
 static void bc_generate_prelude(FILE *f) {
     fprintf(f,
@@ -111,7 +112,14 @@ static void bc_generate_value(BCValue value, FILE *f) {
             break;
         case BC_VALUE_FUNCTION: {
             BCFunction function = (BCFunction) value->storage;
-            fprintf(f, "%.*s", strp(function->name));
+            for (u32 i = 0; i < function->name.length; i++) {
+                if (!isalnum(function->name.data[i])) {
+                    fprintf(f, "_");
+                    continue;
+                } else {
+                    fprintf(f, "%c", function->name.data[i]);
+                }
+            }
             break;
         }
     }
@@ -288,7 +296,16 @@ static void bc_generate_code(BCCode code, FILE *f) {
 
 static void bc_generate_function_type(BCFunction function, FILE *f) {
     bc_generate_type(function->signature->result, f);
-    fprintf(f, " %.*s(", strp(function->name));
+    fprintf(f, " ");
+    for (u32 i = 0; i < function->name.length; i++) {
+        if (!isalnum(function->name.data[i])) {
+            fprintf(f, "_");
+            continue;
+        } else {
+            fprintf(f, "%c", function->name.data[i]);
+        }
+    }
+    fprintf(f, "(");
     if (function->signature->num_params == 0) {
         fprintf(f, "void)");
         return;
