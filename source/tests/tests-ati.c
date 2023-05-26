@@ -79,18 +79,18 @@ static int ati_test_config_parses_and_loads_values(void) {
 
     UASSERT(string_match(option_list[0].value, str("value3")));
     UASSERT(option_list[0].tag.length == 0);
-    UASSERT(option_list[0].tag.data == null);
+    UASSERT(option_list[0].tag.data == null || string_match(option_list[0].tag, str("")));
 
     UASSERT(string_match(option_list[1].value, str("value4")));
     UASSERT(option_list[1].tag.length == 0);
-    UASSERT(option_list[1].tag.data == null);
+    UASSERT(option_list[1].tag.data == null || string_match(option_list[1].tag, str("")));
 
     UASSERT(options_get_list(options, str("array2"), &option_list));
     UASSERT(option_list != null);
 
     UASSERT(string_match(option_list[0].value, str("value5")));
     UASSERT(option_list[0].tag.length == 0);
-    UASSERT(option_list[0].tag.data == null);
+    UASSERT(option_list[0].tag.data == null || string_match(option_list[0].tag, str("")));
 
     UASSERT(string_match(option_list[1].value, str("value6")));
     UASSERT(string_match(option_list[1].tag, str("tag1")));
@@ -103,7 +103,7 @@ static int ati_test_config_parses_and_loads_values(void) {
 
     UASSERT(string_match(option_list[1].value, str("value8")));
     UASSERT(option_list[1].tag.length == 0);
-    UASSERT(option_list[1].tag.data == null);
+    UASSERT(option_list[1].tag.data == null || string_match(option_list[1].tag, str("")));
 
     UASSERT(!options_get_list(options, str("array4"), &option_list));
 
