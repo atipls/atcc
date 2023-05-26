@@ -346,6 +346,9 @@ static LLVMValueRef bc_generate_comparison(LLVMContext *context, BCCode code, in
     // Upcast to i32 from i1
     result = LLVMBuildZExt(context->builder, result, LLVMInt32TypeInContext(context->llvm), "v");
 
+    if (regA->type->is_floating)
+        result = LLVMBuildSIToFP(context->builder, result, LLVMFloatTypeInContext(context->llvm), "v");
+
     return regD->backend_data = result;
 }
 
