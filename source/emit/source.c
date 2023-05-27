@@ -113,6 +113,9 @@ static void bc_generate_value(BCValue value, FILE *f) {
         case BC_VALUE_FUNCTION: {
             BCFunction function = (BCFunction) value->storage;
             for (u32 i = 0; i < function->name.length; i++) {
+                if (function->name.data[i] == 0)
+                    continue;
+
                 if (!isalnum(function->name.data[i])) {
                     fprintf(f, "_");
                     continue;
@@ -298,6 +301,9 @@ static void bc_generate_function_type(BCFunction function, FILE *f) {
     bc_generate_type(function->signature->result, f);
     fprintf(f, " ");
     for (u32 i = 0; i < function->name.length; i++) {
+        if (function->name.data[i] == 0)
+            continue;
+
         if (!isalnum(function->name.data[i])) {
             fprintf(f, "_");
             continue;
