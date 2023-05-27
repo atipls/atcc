@@ -1,0 +1,67 @@
+fun memset(v: void*, val: i32, len: u32): void*;
+fun memcpy(v: void*, val: i32, len: u32): void*;
+fun usleep(v: i32);
+fun putchar(c: u8): i32;
+
+// When using the LLVM backend, we can swap `Sin` and `Cos`
+// for the LLVM intrinsics
+fun "llvm.sin.f64"(x: f64): f64;
+fun "llvm.cos.f64"(x: f64): f64;
+
+fun sin(x: f64): f64;
+fun cos(x: f64): f64;
+
+fun Sin(x: f64): f64 return sin(x);
+fun Cos(x: f64): f64 return cos(x);
+
+fun Main(args: string[*]): i32 {
+    A := 0.0;
+    B := 0.0;
+
+    depthBuffer : f64[1760];
+    outputBuffer: u8 [1760];
+
+    printf("\x1B[2J".data);
+
+    while (true) {
+        memset(&depthBuffer [0], 0 , cast(u32) 7040 * 2);
+        memset(&outputBuffer[0], 32, cast(u32) 1760);
+
+        sinA := Sin(A); cosA := Cos(A);
+        sinB := Sin(B); cosB := Cos(B);
+
+        for (j := 0.0; j < 6.28; j += 0.07) {
+            sinJ := Sin(j); cosJ := Cos(j);
+            cosJ2 := cosJ + 2.0;
+
+            for (i := 0.0; i < 6.28; i += 0.02) {
+                sinI := Sin(i); cosI := Cos(i);
+
+                pixelDepth := 1.0 / (sinI * cosJ2 * sinA + sinJ * cosA + 5.0);
+
+                t := sinI * cosJ2 * cosA - sinJ * sinA;
+
+                x := 40 + cast(i32)(30.0 * pixelDepth * (cosI * cosJ2 * cosB - t * sinB));
+                y := 12 + cast(i32)(15.0 * pixelDepth * (cosI * cosJ2 * sinB + t * cosB));
+
+                outputTarget := x + 80 * y;
+
+                luminance := cast(i32)(8.0 * ((sinJ * sinA - sinI * cosJ * cosA) * cosB - sinI * cosJ * sinA - sinJ * cosA - cosI * cosJ * sinB));
+                if (22 > y && y > 0 && x > 0 && 80 > x && pixelDepth > cast(f64) depthBuffer[outputTarget]) {
+                    depthBuffer [outputTarget] = pixelDepth;
+                    outputBuffer[outputTarget] = ".,-~:;=!*#$@".data[luminance > 0 ? luminance : 0];
+                }
+            }
+        }
+
+        printf("\x1B[H".data);
+        for (k := 0; k < 1761; k+=1) putchar(k % 80 ? outputBuffer[k] : cast(u8) 10);
+
+        A += 0.04;
+        B += 0.02;
+
+        usleep(10000);
+    }
+
+    return 0;
+}
