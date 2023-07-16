@@ -24,6 +24,8 @@ struct {
 VerboseFlags verbose = 0;
 
 bool parse_options(i32 argc, cstring argv[]) {
+    settings.inputs = vector_create(string);
+
     for (i32 i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             if (argv[i][1] == 'o') {
@@ -131,7 +133,7 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
         return 1;
     }
 
-    if (vector_len(sema_context->errors) > 0) {
+    if (vector_length(sema_context->errors) > 0) {
         fprintf(stderr, "\033[31mThe following errors were found during semantic analysis:\033[0m\n");
         print_semantic_errors(sema_context->errors);
         fprintf(stderr, "    \033[36m-> stopping compilation.\033[0m\n");
@@ -219,7 +221,7 @@ static i32 config_main(cstring config) {
     write_dot = string_match(write_dot_string, str("true"));
     verbose = atoi(string_to_cstring(verbose_string));
 
-    string *inputs = null;
+    string *inputs = vector_create(string);
     vector_foreach(entry, entry, input_entries) {
         if (entry->tag.length)
             continue;

@@ -373,15 +373,15 @@ static LLVMValueRef bc_generate_phi(LLVMContext *context, BCCode code) {
     LLVMTypeRef type = bc_convert_type(context, code->phi_value->type);
     LLVMValueRef result = LLVMBuildPhi(context->builder, type, "v");
 
-    LLVMValueRef *values = make_n(LLVMValueRef, code->phi_value->num_phi);
-    LLVMBasicBlockRef *blocks = make_n(LLVMBasicBlockRef, code->phi_value->num_phi);
+    LLVMValueRef *values = make_n(LLVMValueRef, code->phi_value->num_incoming_phi_values);
+    LLVMBasicBlockRef *blocks = make_n(LLVMBasicBlockRef, code->phi_value->num_incoming_phi_values);
 
-    for (u32 i = 0; i < code->phi_value->num_phi; i++) {
+    for (u32 i = 0; i < code->phi_value->num_incoming_phi_values; i++) {
         values[i] = bc_generate_value(context, code->phi_value->phi_values[i]);
         blocks[i] = code->phi_value->phi_blocks[i]->backend_data;
     }
 
-    LLVMAddIncoming(result, values, blocks, code->phi_value->num_phi);
+    LLVMAddIncoming(result, values, blocks, code->phi_value->num_incoming_phi_values);
 
     return code->phi_value->phi_result->backend_data = result;
 }

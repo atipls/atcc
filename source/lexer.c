@@ -70,12 +70,12 @@ static void lexer_build_identifier(Lexer *lexer, Token *token) {
     };
 #undef initstr
 
-    i8 *buffer = null;
+    i8 *buffer = vector_create_n(i8, 32);
     while (isalnum(lexer_peek(lexer)) || lexer_peek(lexer) == '_')
         vector_push(buffer, lexer_read(lexer));
 
     token->kind = TOKEN_IDENTIFIER;
-    token->value = rawstr(buffer, vector_len(buffer));
+    token->value = rawstr(buffer, vector_length(buffer));
     for (i32 i = 0; i < array_length(keywords); i++) {
         if (string_match(token->value, keywords[i].ident)) {
             token->kind = keywords[i].kind;
@@ -85,15 +85,16 @@ static void lexer_build_identifier(Lexer *lexer, Token *token) {
 }
 
 static void lexer_build_number(Lexer *lexer, Token *token) {
-    i8 *buffer = null, seen_dot = 0;
+    i8 *buffer = vector_create_n(i8, 32);
+    bool seen_dot = 0;
     while (isdigit(lexer_peek(lexer)) || lexer_peek(lexer) == '.') {
         if (lexer_peek(lexer) == '.') {
             if (!seen_dot)
                 seen_dot = true;
             else {
                 token->kind = TOKEN_NUMBER;
-                token->value = rawstr(buffer, vector_len(buffer));
-                lexer->offset--; // Make sure .. lexes properly.
+                token->value = rawstr(buffer, vector_length(buffer));
+                lexer->offset--;// Make sure .. lexes properly.
                 return;
             }
         }
@@ -101,11 +102,11 @@ static void lexer_build_number(Lexer *lexer, Token *token) {
     }
 
     token->kind = TOKEN_NUMBER;
-    token->value = rawstr(buffer, vector_len(buffer));
+    token->value = rawstr(buffer, vector_length(buffer));
 }
 
 static void lexer_build_string_or_char(Lexer *lexer, Token *token, i8 terminator) {
-    i8 *buffer = null;
+    i8 *buffer = vector_create_n(i8, 32);
     while (lexer_peek(lexer) != terminator) {
         i8 character = lexer_read(lexer);
         if (character == '\\') {
@@ -143,7 +144,7 @@ static void lexer_build_string_or_char(Lexer *lexer, Token *token, i8 terminator
     vector_push(buffer, '\0');
 
     token->kind = terminator == '"' ? TOKEN_STRING : TOKEN_CHAR;
-    token->value = rawstr(buffer, vector_len(buffer));
+    token->value = rawstr(buffer, vector_length(buffer));
 }
 
 static void lexer_build_equal(Lexer *lexer, Token *token, TokenKind token1, TokenKind token2) {
@@ -177,12 +178,15 @@ Token *lexer_tokenize(string filename, Buffer data) {
     lexer.source = data;
     lexer.line = 1;
     lexer.column = 1;
+    lexer.buffer = vector_create(Token);
 
     while (lexer_peek(&lexer) != 0) {
         while (isspace(lexer_peek(&lexer)) || lexer_peek(&lexer) == -62 || lexer_peek(&lexer) == -96)
             lexer_read(&lexer);
 
-        Token *current = vector_add(lexer.buffer, 1);
+        vector_push(lexer.buffer, (Token){0});
+        Token *current = &vector_last(lexer.buffer);
+
         current->kind = TOKEN_NONE;
         current->flags = TOKEN_FLAG_NONE;
         current->location = (Location){.file = lexer.filename, .line = lexer.line, .column = lexer.column};
@@ -306,11 +310,11 @@ Token *lexer_tokenize(string filename, Buffer data) {
                     lexer_read(&lexer);
                     while (lexer_peek(&lexer) != '\0' && lexer_peek(&lexer) != '\r' && lexer_peek(&lexer) != '\n')
                         lexer_read(&lexer);
-                    vector_raw_len(lexer.buffer)--;    // We don't want to emit the slash if we are in a comment
-                } else if (lexer_peek(&lexer) == '*') {// Multi line comment
+                    vector_header(lexer.buffer)->length--;// We don't want to emit the slash if we are in a comment
+                } else if (lexer_peek(&lexer) == '*') {   // Multi line comment
                     lexer_read(&lexer);
                     lexer_skip_multiline_comment(&lexer);
-                    vector_raw_len(lexer.buffer)--;// We don't want to emit the slash if we are in a comment
+                    vector_header(lexer.buffer)->length--;// We don't want to emit the slash if we are in a comment
                 }
                 break;
             }

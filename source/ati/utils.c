@@ -1,15 +1,29 @@
 #include "utils.h"
 
-void *vector_growf(void *arr, int increment, int itemsize) {
-    int natural_capacity = arr ? 2 * vector_raw_cap(arr) : 0;
-    int space_needed = vector_len(arr) + increment;
-    int new_capacity = natural_capacity > space_needed ? natural_capacity : space_needed;
-    int *reallocated_data = (int *) realloc(arr ? vector_raw(arr) : 0, itemsize * new_capacity + sizeof(int) * 2);
-    if (!reallocated_data) return null;
-    if (!arr)
-        reallocated_data[1] = 0;
-    reallocated_data[0] = new_capacity;
-    return reallocated_data + 2;
+void *vector_create_sized(u32 item_size, u32 capacity) {
+    usize size = sizeof(VectorHeader) + item_size * capacity;
+    VectorHeader *header = (VectorHeader *) calloc(1, size);
+    if (!header) return null;
+
+    header->length = 0;
+    header->capacity = capacity;
+    return header + 1;
+}
+
+void *vector_grow_sized(void *vector, u32 increment, u32 item_size) {
+    VectorHeader *header = vector_header(vector);
+
+    usize growth = header->capacity * 2;
+    usize needed = header->length + increment;
+    usize capacity = growth > needed ? growth : needed;
+
+    usize size = sizeof(VectorHeader) + item_size * capacity;
+    header = (VectorHeader *) realloc(header, size);
+
+    if (!header) return null;
+
+    header->capacity = capacity;
+    return header + 1;
 }
 
 Buffer read_file(string path) {

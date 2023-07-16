@@ -73,8 +73,10 @@ static bool sema_put(SemanticScope *scope, string name, SemanticEntry *entry) {
 
 SemanticContext *sema_initialize() {
     SemanticContext *context = make(SemanticContext);
+    context->programs = vector_create(ASTNode *);
     context->global = make_scope(null);
     context->scope = context->global;
+    context->errors = vector_create(SemanticError);
 
     pointer_table_create(&context->array_types);
     pointer_table_create(&context->pointer_types);
@@ -90,7 +92,6 @@ SemanticContext *sema_initialize() {
     context->type_u64 = make_type(TYPE_U64, 8, 8);
     context->type_f32 = make_type(TYPE_F32, 4, 4);
     context->type_f64 = make_type(TYPE_F64, 8, 8);
-    context->type_string = make_type(TYPE_STRING, 1, 1);
 
     string_table_set(&context->global->entries, str("void"), make_builtin(context->type_void));
     string_table_set(&context->global->entries, str("i8"), make_builtin(context->type_i8));
@@ -105,15 +106,19 @@ SemanticContext *sema_initialize() {
     string_table_set(&context->global->entries, str("f64"), make_builtin(context->type_f64));
 
     context->type_string = make_type(TYPE_STRING, 12, POINTER_SIZE);
+    context->type_string->fields = vector_create_n(TypeField, 2);
 
-    TypeField *length = vector_add(context->type_string->fields, 1);
-    length->name = str("length");
-    length->type = context->type_u32;
+    TypeField *type_string_length = &context->type_string->fields[0];
+    TypeField *type_string_data = &context->type_string->fields[1];
 
-    TypeField *data = vector_add(context->type_string->fields, 1);
-    data->name = str("data");
-    data->type = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
-    data->type->base_type = context->type_u8;
+    type_string_length->name = str("length");
+    type_string_length->type = context->type_u32;
+
+    type_string_data->name = str("data");
+    type_string_data->type = make_type(TYPE_POINTER, POINTER_SIZE, POINTER_SIZE);
+    type_string_data->type->base_type = context->type_u8;
+
+    vector_header(context->type_string->fields)->length = 2;
 
     string_table_set(&context->global->entries, str("string"), make_builtin(context->type_string));
 
@@ -237,7 +242,7 @@ static Type *sema_resolve_type(SemanticContext *context, ASTNode *node) {
 static Type *sema_resolve_function_type(SemanticContext *context, ASTNode *node) {
     if (node->base_type) return node->base_type;
 
-    Type **parameters = null;
+    Type **parameters = vector_create(Type *);
     vector_foreach_ptr(ASTNode, parameter, node->function_parameters) {
         Type *parameter_type = sema_resolve_type(context, (*parameter)->function_parameter_type);
         if (!parameter_type) return null;
@@ -369,7 +374,7 @@ static bool sema_complete_aggregate(SemanticContext *context, Type *aggregate) {
 
     ASTNode *node = aggregate->owner->aggregate;
 
-    TypeField *fields = null;
+    TypeField *fields = vector_create(TypeField);
     u32 total_size = 0;
     vector_foreach_ptr(ASTNode, field, node->aggregate_items)
             total_size += sema_resolve_aggregate_item(context, *field, &fields, node->aggregate_kind == TOKEN_KW_UNION);
@@ -551,7 +556,7 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
         switch (field->kind) {
             case AST_EXPRESSION_COMPOUND_FIELD: {
                 if (type->kind == TYPE_AGGREGATE) {
-                    if (current_default_index >= vector_len(type->fields)) {
+                    if (current_default_index >= vector_length(type->fields)) {
                         sema_errorf(context, field, "too many fields in compound literal");
                         return null;
                     }
@@ -577,7 +582,7 @@ static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode 
                     sema_errorf(context, expression, "cannot use incomplete type here");
 
                 bool found = false;
-                for (u64 i = 0; i < vector_len(type->fields); i++) {
+                for (u64 i = 0; i < vector_length(type->fields); i++) {
                     if (string_match(field->compound_field_name, type->fields[i].name)) {
                         field->base_type = type->fields[i].type;
                         found = true;
@@ -718,8 +723,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 return null;
             }
 
-            if (entry->node->kind == AST_DECLARATION_VARIABLE
-                && entry->node->variable_is_const) {
+            if (entry->node->kind == AST_DECLARATION_VARIABLE && entry->node->variable_is_const) {
                 // Hack to make enums work.
                 expression->constant = eval_expression(entry->node->variable_initializer);
             }
@@ -764,8 +768,8 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 return null;
             }
 
-            u32 wanted_args = vector_len(target_function_type->function_parameters);
-            u32 given_args = vector_len(expression->call_arguments);
+            u32 wanted_args = vector_length(target_function_type->function_parameters);
+            u32 given_args = vector_length(expression->call_arguments);
 
             if (given_args < wanted_args) {
                 sema_errorf(context, expression->call_target, "function got too few arguments. wanted %u, given %u", wanted_args, given_args);

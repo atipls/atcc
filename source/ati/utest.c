@@ -14,6 +14,9 @@ static void utest_signal_handler(i32 sig) {
 }
 
 void utest_register(string name, UTest *tests, u32 count) {
+    if (utests == null)
+        utests = vector_create(UTest);
+
     for (u32 i = 0; i < count; i++) {
         UTest *test = vector_add(utests, 1);
 

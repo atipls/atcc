@@ -55,7 +55,7 @@ BCValue bc_value_make_string(BCContext context, BCType type, string string) {
     constant->type = bc_type_pointer(type);
     constant->kind = BC_VALUE_STRING;
     constant->string = string;
-    constant->string_index = vector_len(context->strings);
+    constant->string_index = vector_length(context->strings);
 
     vector_push(context->strings, constant);
 
@@ -69,9 +69,9 @@ BCValue bc_value_make_phi(BCFunction function, BCType type) {
     phi->kind = BC_VALUE_PHI;
 
     phi->phi_result = bc_value_make(function, type);
-    phi->phi_values = NULL;
-    phi->phi_blocks = NULL;
-    phi->num_phi = 0;
+    phi->phi_values = vector_create(BCValue);
+    phi->phi_blocks = vector_create(BCBlock);
+    phi->num_incoming_phi_values = 0;
 
     return phi;
 }
@@ -126,7 +126,7 @@ BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynam
     array->element = type;
     array->count = size;
     array->is_dynamic = is_dynamic;
-    array->emit_index = vector_len(context->arrays);
+    array->emit_index = vector_length(context->arrays);
 
     vector_push(context->arrays, array);
     return array;
@@ -172,7 +172,13 @@ bool bc_type_is_integer(BCType type) {
 
 BCContext bc_context_initialize() {
     BCContext context = make(struct SBCContext);
-    // lol
+
+    context->arrays = vector_create(BCType);
+    context->aggregates = vector_create(BCType);
+    context->strings = vector_create(BCValue);
+
+    context->functions = vector_create(BCFunction);
+
     return context;
 }
 
@@ -184,6 +190,8 @@ BCFunction bc_function_create(BCContext context, BCType signature, string name) 
 
     BCBlock initial_block = bc_block_make(function);
     function->first_block = function->last_block = function->current_block = initial_block;
+
+    function->locals = vector_create(BCValue);
 
     vector_push(context->functions, function);
 
@@ -220,11 +228,13 @@ BCBlock bc_block_make(BCFunction function) {
         function->last_block = block;
     }
 
+    block->code = vector_create(BCCode);
+
     return block;
 }
 
 bool bc_block_is_terminated(BCBlock block) {
-    if (!vector_len(block->code)) return false;
+    if (!vector_length(block->code)) return false;
     BCCode last_insn = vector_last(block->code);
     return last_insn->opcode == BC_OP_RETURN ||
            last_insn->opcode == BC_OP_JUMP ||
@@ -348,7 +358,7 @@ void bc_insn_phi_add_incoming(BCValue phi, BCValue *values, BCBlock *blocks, u32
         last_insn->regC = values[i];
     }
 
-    phi->num_phi += num_incoming;
+    phi->num_incoming_phi_values += num_incoming;
 }
 
 static BCValue bc_insn_arith(BCFunction function, BCOpcode opcode, BCValue arg1, BCValue arg2) {

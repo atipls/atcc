@@ -30,13 +30,13 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
         }
         case TYPE_FUNCTION: {
             BCType result = build_convert_type(context, type->function_return_type);
-            BCType *parameters = null;
+            BCType *parameters = vector_create(BCType);
             vector_foreach_ptr(Type, parameter_ptr, type->function_parameters) {
                 BCType parameter = build_convert_type(context, *parameter_ptr);
                 vector_push(parameters, parameter);
             }
 
-            BCType function_type = bc_type_function(result, parameters, vector_len(parameters));
+            BCType function_type = bc_type_function(result, parameters, vector_length(parameters));
             function_type->is_variadic = type->function_is_variadic;
 
             pointer_table_set(&context->types, type, function_type);
@@ -99,7 +99,7 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
                         offset += target_type->size;
                 }
 
-                bc_type_aggregate_set_body(aggregate, members, vector_len(members));
+                bc_type_aggregate_set_body(aggregate, members, vector_length(members));
             }
             return aggregate;
         }
@@ -411,7 +411,7 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
                 BCValue value = build_expression(context, field->compound_field_target);
                 BCValue target = null;
 
-                for (u64 i = 0; i < vector_len(ntype->fields); i++) {
+                for (u64 i = 0; i < vector_length(ntype->fields); i++) {
                     TypeField *type_field = &ntype->fields[i];
                     if (string_match(type_field->name, field->compound_field_name)) {
                         target = bc_insn_get_field(context->function, compound, field_type, i);
@@ -482,14 +482,14 @@ static BCValue build_expression(BuildContext *context, ASTNode *expression) {
             if (node_type(expression->call_target)->kind == TYPE_STRING)
                 target = build_resolve_name(context, expression->call_target->literal_value);
             else target = build_expression(context, expression->call_target);
-            BCValue *args = null;
+            BCValue *arguments = vector_create(BCValue);
 
             vector_foreach_ptr(ASTNode, argument_ptr, expression->call_arguments) {
                 BCValue argument = build_expression(context, *argument_ptr);
-                vector_push(args, argument);
+                vector_push(arguments, argument);
             }
 
-            return bc_insn_call(context->function, target, args, vector_len(args));
+            return bc_insn_call(context->function, target, arguments, vector_length(arguments));
         }
         case AST_EXPRESSION_FIELD:
         case AST_EXPRESSION_INDEX: return bc_insn_load(context->function, build_expression_lvalue(context, expression));
@@ -980,7 +980,7 @@ static void build_preload_function(BuildContext *context, ASTNode *function) {
 
     Type *type = node_type(function);
 
-    u32 num_params = vector_len(type->function_parameters);
+    u32 num_params = vector_length(type->function_parameters);
     BCType *params = make_n(BCType, num_params);
     for (u32 i = 0; i < num_params; i++)
         params[i] = build_convert_type(context, type->function_parameters[i]);

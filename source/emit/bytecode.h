@@ -37,7 +37,7 @@ struct SBCValue {
             BCValue phi_result;
             BCValue *phi_values;
             BCBlock *phi_blocks;
-            u32 num_phi;
+            u32 num_incoming_phi_values;
         };
     };
 };
@@ -325,7 +325,6 @@ void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value);
 void bc_patch_u64(BCBuffer *buffer, u64 offset, u64 value);
 void bc_patch_f32(BCBuffer *buffer, u64 offset, f32 value);
 void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
-
 
 bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f);

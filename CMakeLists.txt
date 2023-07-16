@@ -40,8 +40,7 @@ add_executable(atcc
         source/sema.c
         source/type.c
 
-        ${TEST_SOURCES}
-        )
+        ${TEST_SOURCES} source/emit/output-mac.c)
 
 
 find_package(LLVM CONFIG)
@@ -62,3 +61,8 @@ endif ()
 
 target_include_directories(atcc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/source)
 
+# Enable address sanitizer
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(atcc PRIVATE -fsanitize=address)
+    target_link_options(atcc PRIVATE -fsanitize=address)
+endif ()

@@ -91,7 +91,7 @@ static string string_format_va(string format, va_list args) {
     va_copy(args_copy, args);
     i32 length = vsnprintf(null, 0, (char *) format.data, args_copy);
     va_end(args_copy);
-    string result = make_string(length);
+    string result = make_string(length + 1);
     vsnprintf((char *) result.data, length + 1, (char *) format.data, args);
     return result;
 }

@@ -190,7 +190,7 @@ static OptToken opt_lexer_next(OptLexer *lexer) {
 
 
 option *options_parse(string filename, Buffer buffer) {
-    option *options = null;
+    option *options = vector_create(option);
 
     string data = rawstr(buffer.data, buffer.length);
     OptLexer lexer;
@@ -213,6 +213,7 @@ option *options_parse(string filename, Buffer buffer) {
 
             current = vector_add(options, 1);
             current->key = token.value;
+            current->entries = vector_create(entry);
 
             token = opt_lexer_next(&lexer);
             if (token.kind != OPT_TOKEN_EQUALS) {

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define POINTER_SIZE 8
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -13,6 +15,14 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+
+#if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__) || defined(__aarch64__)
+typedef u64 usize;
+typedef i64 isize;
+#else
+typedef u32 usize;
+typedef i32 isize;
+#endif
 
 typedef float f32;
 typedef double f64;
@@ -93,7 +103,5 @@ static inline Variant variant_array(Variant *a, u64 length) { return (Variant){V
 bool variant_equals(Variant *a, Variant *b);
 
 void variant_print(Variant variant);
-
-#define POINTER_SIZE 8
 
 void ati_register_utest(void);

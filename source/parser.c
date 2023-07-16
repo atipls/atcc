@@ -259,7 +259,7 @@ static ASTNode *parse_expression_base(Parser *parser) {
     ASTNode *node = parse_expression_operand(parser);
     while (parser_check(parser, TOKEN_OPEN_PAREN) || parser_check(parser, TOKEN_OPEN_BRACKET) || parser_check(parser, TOKEN_DOT)) {
         if (parser_consume(parser, TOKEN_OPEN_PAREN)) {
-            ASTNode **arguments = null;
+            ASTNode **arguments = vector_create(ASTNode *);
             if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
                 do {
                     vector_push(arguments, parse_expression(parser));
@@ -608,6 +608,7 @@ static ASTNode *parse_statement(Parser *parser) {
 static ASTNode *parse_statement_block(Parser *parser) {
     if (parser_consume(parser, TOKEN_OPEN_BRACE)) {
         ASTNode *node = make_ast(AST_STATEMENT_BLOCK);
+        node->statements = vector_create(ASTNode *);
         while (!parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_EOF))
             vector_push(node->statements, parse_statement(parser));
         if (!parser_consume(parser, TOKEN_CLOSE_BRACE))
@@ -830,7 +831,7 @@ static ASTNode *parse_declaration_function(Parser *parser) {
     if (!parser_consume(parser, TOKEN_OPEN_PAREN))
         return make_error(parser, str("Expected '(' after function name."));
 
-    ASTNode **parameters = null;
+    ASTNode **parameters = vector_create(ASTNode *);
     bool is_variadic = false;
     if (!parser_check(parser, TOKEN_CLOSE_PAREN)) {
         vector_push(parameters, parse_declaration_function_parameter(parser));
@@ -951,6 +952,7 @@ ASTNode *parse_program(Token *tokens) {
 
     ASTNode *program = make_ast(AST_PROGRAM);
     program->location = parser->current->location;
+    program->declarations = vector_create(ASTNode *);
 
     while (!parser_check(parser, TOKEN_EOF)) {
         ASTNode *declaration = parse_declaration(parser);

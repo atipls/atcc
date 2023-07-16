@@ -207,11 +207,11 @@ void bc_dump_code(BCCode code, FILE *f) {
         case BC_OP_PHI:
             bc_dump_value(code->phi_value->phi_result, f);
             fprintf(f, " = phi(");
-            for (u32 i = 0; i < code->phi_value->num_phi; i++) {
+            for (u32 i = 0; i < code->phi_value->num_incoming_phi_values; i++) {
                 fprintf(f, "block%llu: ", code->phi_value->phi_blocks[i]->serial);
                 bc_dump_value(code->phi_value->phi_values[i], f);
 
-                if (i < code->phi_value->num_phi - 1)
+                if (i < code->phi_value->num_incoming_phi_values - 1)
                     fprintf(f, ", ");
             }
             fprintf(f, ")");
