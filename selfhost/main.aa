@@ -1,0 +1,85 @@
+
+enum CompilerBackend {
+	BACKEND_SOURCE   = 0 << 0; // Implies generating one C file.
+	BACKEND_I386     = 1 << 0;
+	BACKEND_AMD64    = 1 << 1;
+	BACKEND_ARMV7    = 1 << 2;
+	BACKEND_AARCH64  = 1 << 3;
+	BACKEND_RISCV    = 1 << 4;
+
+	BACKEND_PLATFORM_WINDOWS = 1 << 5;
+	BACKEND_PLATFORM_LINUX   = 1 << 6;
+	BACKEND_PLATFORM_MACOS   = 1 << 7;
+}
+
+enum CompilerVerbosity {
+	VERBOSE_NOTHING  = 0 << 0;
+	VERBOSE_LEXER    = 1 << 1;
+	VERBOSE_PARSER   = 1 << 2;
+	VERBOSE_ANALYSIS = 1 << 3;
+	VERBOSE_BYTECODE = 1 << 4;
+	VERBOSE_CODEGEN  = 1 << 5;
+}
+
+struct CompilerOptions {
+	files : string[];
+	output: string;
+
+	backend  : CompilerBackend;
+	verbosity: CompilerVerbosity;
+}
+
+fun ParseCompilerOptions(args: string[*]): CompilerOptions {
+	options := CompilerOptions {
+		output = "generated.c",
+	};
+
+	options.files.data = malloc(12);
+	options.files.length = 1;
+	options.files[0] = "projects\donut\donut.aa";
+	
+	for (index := 1; index < args.length; index += 1) {
+		argument := args[index];
+
+		switch (argument) {
+			case "--out": 
+				if (index + 1 < args.length) {
+					options.output = args[index + 1];
+					index += 1;
+				}
+
+			default: // ArrayPush(options.files, argument);
+		}
+	}
+
+	return options;
+}
+
+const STATUS_SUCCESS := 0;
+const STATUS_FAILURE := 1;
+
+fun Main(args: string[*]): i32 {
+	options := ParseCompilerOptions(args);
+	files := options.files;
+	
+	if (!files.length) {
+		ReportError(NO_LOCATION, "no files to compile");
+		return STATUS_FAILURE;
+	}
+
+	for (index := 0; index < files.length; index += 1) {
+		filename := files[index];
+		buffer   := ReadFile(filename);
+
+		if (!buffer.length) {
+			location := Location { filename = filename };
+			ReportError(&location, "unable to read the file");
+			return STATUS_FAILURE;
+		}
+		
+		tokens := LexerRun(filename, buffer);
+
+	}
+
+	return STATUS_SUCCESS;
+}

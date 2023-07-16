@@ -84,7 +84,7 @@ static BCType build_convert_type(BuildContext *context, Type *type) {
                 aggregate = bc_type_aggregate(context->bc, name);
                 string_table_set(&context->aggregates, name, aggregate);
 
-                BCAggregate *members = null;
+				BCAggregate *members = vector_create(BCAggregate);
                 u32 offset = 0;
                 vector_foreach(TypeField, field, type->fields) {
                     BCType target_type = build_convert_type(context, field->type);
@@ -375,7 +375,11 @@ static BCValue build_expression_compound(BuildContext *context, ASTNode *express
         BCValue data_size = bc_insn_mul(context->function, bc_value_make_consti(bc_type_u64, base_type->element->size),
                                         base_type->count);
         build_memset(context, data_pointer, bc_value_make_consti(bc_type_u8, 0), data_size);
-    }
+	}
+	else {
+		BCValue data_size = bc_value_make_consti(bc_type_u64, compound->type->size);
+		build_memset(context, compound, bc_value_make_consti(bc_type_u8, 0), data_size);
+	}
 
     u64 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {

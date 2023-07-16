@@ -1,0 +1,12 @@
+
+struct Location {
+	line, column: i32;
+	filename: string;
+}
+
+var NO_LOCATION := cast(Location *) 0;
+
+fun ReportError(location: Location*, message: string) {
+	if (location) printf("%.*s(%d,%d): ".data, location.filename.length, location.filename.data, location.line, location.column);
+	printf("error: %.*s\n".data, message.length, message.data);
+}

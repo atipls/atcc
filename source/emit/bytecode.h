@@ -10,7 +10,7 @@ typedef struct SBCBlock *BCBlock;
 typedef struct SBCFunction *BCFunction;
 typedef struct SBCContext *BCContext;
 
-typedef enum {
+typedef enum BCValueKind {
     BC_VALUE_CONSTANT,
     BC_VALUE_STRING,
     BC_VALUE_PARAMETER,
@@ -282,26 +282,6 @@ BCValue bc_insn_cast(BCFunction function, BCOpcode opcode, BCValue source, BCTyp
 
 void bc_dump_function(BCFunction function, FILE *f);
 
-typedef enum BCObjectKind {
-    BC_OBJECT_KIND_LINUX,
-    BC_OBJECT_KIND_WINDOWS,
-    BC_OBJECT_KIND_MACOS,
-} BCObjectKind;
-
-typedef struct BCSection {
-    string name;
-    u8 *data;
-    u64 size;
-} BCSection;
-
-typedef struct BCObject {
-    BCObjectKind kind;
-    BCSection *sections;
-    u32 num_sections;
-    void *platform;
-} BCObject;
-
-// Binary codegen helpers
 typedef struct BCBuffer {
     u8 *data;
     u64 size;
@@ -325,6 +305,29 @@ void bc_patch_u32(BCBuffer *buffer, u64 offset, u32 value);
 void bc_patch_u64(BCBuffer *buffer, u64 offset, u64 value);
 void bc_patch_f32(BCBuffer *buffer, u64 offset, f32 value);
 void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
+
+typedef enum BCObjectKind {
+	BC_OBJECT_KIND_LINUX,
+	BC_OBJECT_KIND_WINDOWS,
+	BC_OBJECT_KIND_MACOS,
+} BCObjectKind;
+
+typedef struct BCSection {
+	string name;
+	u8 *data;
+	u64 size;
+} BCSection;
+
+typedef struct BCObject {
+	BCObjectKind kind;
+	BCSection *sections;
+	u32 num_sections;
+	void *platform;
+} BCObject;
+
+typedef struct BCBinaryFile {
+	BCSection *sections;
+} BCBinaryFile;
 
 bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
 bool bc_generate_arm64(BCContext context, BCObjectKind object_kind, FILE *f);

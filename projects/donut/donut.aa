@@ -11,8 +11,8 @@ fun "llvm.cos.f64"(x: f64): f64;
 fun sin(x: f64): f64;
 fun cos(x: f64): f64;
 
-fun Sin(x: f64): f64 return "llvm.sin.f64"(x);
-fun Cos(x: f64): f64 return "llvm.sin.f64"(x);
+fun Sin(x: f64): f64 return sin(x);
+fun Cos(x: f64): f64 return cos(x);
 
 fun Main(args: string[*]): i32 {
     A := 0.0;
@@ -60,7 +60,7 @@ fun Main(args: string[*]): i32 {
         A += 0.04;
         B += 0.02;
 
-        usleep(10000);
+        // usleep(10000);
     }
 
     return 0;

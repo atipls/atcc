@@ -137,7 +137,7 @@ static ASTNode *parse_expression_compound_field(Parser *parser) {
 static ASTNode *parse_expression_compound(Parser *parser, ASTNode *type) {
     if (!parser_consume(parser, TOKEN_OPEN_BRACE))
         return make_error(parser, str("Expected '{' in compound expression"));
-    ASTNode **fields = null;
+	ASTNode **fields = vector_create(ASTNode *);
     while (!parser_check(parser, TOKEN_CLOSE_BRACE)) {
         vector_push(fields, parse_expression_compound_field(parser));
         if (!parser_consume(parser, TOKEN_COMMA))
@@ -492,7 +492,7 @@ static ASTNode *parse_statement_for(Parser *parser) {
 }
 
 static ASTNode *parse_statement_switch_case(Parser *parser) {
-    ASTNode **switch_patterns = null;
+	ASTNode **switch_patterns = vector_create(ASTNode *);
     bool is_default = false;
     while (parser_check(parser, TOKEN_KW_CASE) || parser_check(parser, TOKEN_KW_DEFAULT)) {
         if (parser_consume(parser, TOKEN_KW_CASE)) {
@@ -516,6 +516,7 @@ static ASTNode *parse_statement_switch_case(Parser *parser) {
     ASTNode *node = make_ast(AST_STATEMENT_SWITCH_CASE);
     node->switch_case_patterns = switch_patterns;
     node->switch_case_body = make_ast(AST_STATEMENT_BLOCK);
+	node->switch_case_body->statements = vector_create(ASTNode *);
     node->switch_case_is_default = is_default;
     while (!parser_check(parser, TOKEN_EOF) && !parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_KW_CASE) && !parser_check(parser, TOKEN_KW_DEFAULT))
         vector_push(node->switch_case_body->statements, parse_statement(parser));
@@ -527,7 +528,7 @@ static ASTNode *parse_statement_switch(Parser *parser) {
     if (!parser_consume(parser, TOKEN_OPEN_BRACE))
         return make_error(parser, str("Expected '{' after 'switch'"));
 
-    ASTNode **switch_cases = null;
+	ASTNode **switch_cases = vector_create(ASTNode *);
     while (!parser_check(parser, TOKEN_CLOSE_BRACE) && !parser_check(parser, TOKEN_EOF))
         vector_push(switch_cases, parse_statement_switch_case(parser));
 
@@ -743,6 +744,7 @@ static ASTNode *parse_aggregate_item(Parser *parser) {
     }
 
     ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE_FIELD);
+	node->aggregate_names = vector_create(string);
     do {
         if (!parser_consume(parser, TOKEN_IDENTIFIER))
             return make_error(parser, str("Expected an identifier as a field name."));
@@ -766,6 +768,7 @@ static ASTNode *parse_aggregate(Parser *parser, TokenKind kind) {
 
     ASTNode *node = make_ast(AST_DECLARATION_AGGREGATE_CHILD);
     node->aggregate_kind = kind;
+	node->aggregate_items = vector_create(ASTNode*);
     while (!parser_check(parser, TOKEN_EOF) && !parser_check(parser, TOKEN_CLOSE_BRACE))
         vector_push(node->aggregate_items, parse_aggregate_item(parser));
 
@@ -878,7 +881,7 @@ static ASTNode *parse_declaration_enum(Parser *parser) {
     if (!parser_consume(parser, TOKEN_OPEN_BRACE))
         return make_error(parser, str("Expected '{' after 'enum'."));
 
-    ASTNode **items = null;
+	ASTNode **items = vector_create(ASTNode*);
     ASTNode *previous = null;
 
     while (!parser_check(parser, TOKEN_EOF) && !parser_check(parser, TOKEN_CLOSE_BRACE)) {

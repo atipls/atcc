@@ -1,0 +1,6 @@
+
+fun ReadFile(filename: string): u8[] {
+	buffer: u8[];
+
+	return buffer;
+}

@@ -66,13 +66,27 @@ bool parse_options(i32 argc, cstring argv[]) {
     return true;
 }
 
+
+#ifdef ANSI_COLORED
+#define ANSI_RESET "\033[0m"
+#define ANSI_MESSAGE "\033[31m"
+#define ANSI_ERROR "\033[36m"
+#define ANSI_FILE_PATH "\033[94m"
+#else
+#define ANSI_RESET ""
+#define ANSI_MESSAGE ""
+#define ANSI_ERROR ""
+#define ANSI_FILE_PATH ""
+#endif
+
+
 static void print_semantic_errors(SemanticError *errors) {
     vector_foreach(SemanticError, error, errors) {
-        fprintf(stderr, "\x1b[94m%.*s:%d:%d:\x1b[0m ",
-                strp(error->location.file), error->location.line, error->location.column);
+        fprintf(stderr, ANSI_FILE_PATH "%.*s(%d):"ANSI_RESET" ",
+                strp(error->location.file), error->location.line);
 
-        fprintf(stderr, "\033[31merror: \033[0m%.*s\n", strp(error->description));
-    }
+        fprintf(stderr, ANSI_MESSAGE "error: " ANSI_RESET "%.*s\n", strp(error->description));
+	}
 }
 
 static void print_help() {
@@ -103,13 +117,15 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
 
     if (!compiler_load_preload(sema_context)) {
         fprintf(stderr, "Failed to load preload\n");
-        return 1;
+		fflush(stderr);
+		return 1;
     }
 
     vector_foreach(string, filename, inputs) {
         Buffer buffer = read_file(*filename);
         if (!buffer.data) {
             fprintf(stderr, "Failed to read file: %.*s\n", strp(*filename));
+			fflush(stderr);
             return 1;
         }
 
@@ -134,9 +150,9 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
     }
 
     if (vector_length(sema_context->errors) > 0) {
-        fprintf(stderr, "\033[31mThe following errors were found during semantic analysis:\033[0m\n");
+        fprintf(stderr, ANSI_MESSAGE "The following errors were found during semantic analysis:" ANSI_RESET "\n");
         print_semantic_errors(sema_context->errors);
-        fprintf(stderr, "    \033[36m-> stopping compilation.\033[0m\n");
+        fprintf(stderr, "    " ANSI_ERROR "-> stopping compilation." ANSI_ERROR "\n");
         fflush(stderr);
         return 1;
     }

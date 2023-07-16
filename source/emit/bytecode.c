@@ -126,7 +126,7 @@ BCType bc_type_array(BCContext context, BCType type, BCValue size, bool is_dynam
     array->element = type;
     array->count = size;
     array->is_dynamic = is_dynamic;
-    array->emit_index = vector_length(context->arrays);
+    array->emit_index = (u32) vector_length(context->arrays);
 
     vector_push(context->arrays, array);
     return array;

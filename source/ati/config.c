@@ -65,11 +65,6 @@ static OptToken opt_lexer_next(OptLexer *lexer) {
         return token;
     }
 
-    if (lexer->index >= lexer->data.length) {
-        token.kind = OPT_TOKEN_EOF;
-        return token;
-    }
-
     opt_lexer_skip_whitespace(lexer);
 
     char c = lexer->data.data[lexer->index];
@@ -91,6 +86,11 @@ static OptToken opt_lexer_next(OptLexer *lexer) {
 
         opt_lexer_skip_whitespace(lexer);
     }
+
+	if (lexer->index >= lexer->data.length) {
+		token.kind = OPT_TOKEN_EOF;
+		return token;
+	}
 
     c = lexer->data.data[lexer->index];
 

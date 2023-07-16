@@ -402,6 +402,7 @@ static bool sema_node_convert_implicit(ASTNode *node, Type *target) {
         if (target->base_type->kind == TYPE_VOID)
             return true;
 
+		return true;
 
         if (verbose & VERBOSE_SEMANTIC) {
             string source_type = type_to_string(source);
@@ -540,18 +541,23 @@ static Type *sema_analyze_expression_binary(SemanticContext *context, ASTNode *e
 
 static Type *sema_analyze_expression_compound(SemanticContext *context, ASTNode *expression, Type *expected) {
     if (!expected && !expression->compound_type) {
-        sema_errorf(context, expression->compound_type, "implicit compound literals cannot be inferred");
+        sema_errorf(context, expression, "implicit compound literals cannot be inferred");
         return null;
     }
 
     Type *type = expression->compound_type ? sema_resolve_type(context, expression->compound_type) : expected;
+
+	if (type->kind == TYPE_AGGREGATE && !sema_complete_aggregate(context, type)) {
+		sema_errorf(context, expression, "cannot use incomplete type here");
+		return null;
+	}
 
     i32 current_default_index = 0;
     vector_foreach_ptr(ASTNode, field_ptr, expression->compound_fields) {
         ASTNode *field = *field_ptr;
 
         // TODO: Typecheck this?
-        sema_analyze_expression(context, field->compound_field_target);
+        sema_analyze_expression_expected(context, field->compound_field_target, type);
 
         switch (field->kind) {
             case AST_EXPRESSION_COMPOUND_FIELD: {
@@ -768,8 +774,8 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 return null;
             }
 
-            u32 wanted_args = vector_length(target_function_type->function_parameters);
-            u32 given_args = vector_length(expression->call_arguments);
+            usize wanted_args = vector_length(target_function_type->function_parameters);
+			usize given_args = vector_length(expression->call_arguments);
 
             if (given_args < wanted_args) {
                 sema_errorf(context, expression->call_target, "function got too few arguments. wanted %u, given %u", wanted_args, given_args);
@@ -781,7 +787,7 @@ static Type *sema_analyze_expression_expected(SemanticContext *context, ASTNode 
                 return null;
             }
 
-            for (u32 i = 0; i < given_args; i++) {
+            for (usize i = 0; i < given_args; i++) {
                 if (i >= wanted_args) {
                     ASTNode *argument = expression->call_arguments[i];
                     sema_analyze_expression(context, argument);
@@ -1164,6 +1170,12 @@ static bool sema_analyze_function(SemanticContext *context, ASTNode *function) {
     vector_foreach_ptr(ASTNode, parameter_ptr, function->function_parameters) {
         ASTNode *parameter = *parameter_ptr;
         Type *parameter_type = sema_resolve_type(context, parameter->function_parameter_type);
+
+		if (parameter_type->kind == TYPE_AGGREGATE && !sema_complete_aggregate(context, parameter_type)) {
+			sema_errorf(context, parameter, "cannot use incomplete aggregate here");
+			return false;
+		}
+
         SemanticEntry *entry = make_entry();
         entry->kind = SEMA_ENTRY_TYPE;
         entry->state = SEMA_STATE_RESOLVED;
