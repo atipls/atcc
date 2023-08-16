@@ -54,7 +54,7 @@ class Test:
 
     def execute(self):
         try:
-            self.try_execute_with_status(STATUS_ATCC, [self.compiler, "-v", "8191", "-o", self.atcc_name, self.path])
+            self.try_execute_with_status(STATUS_ATCC, [self.compiler, "-verbose-all", "-o", self.atcc_name, self.path])
             self.try_execute_with_status(STATUS_COMPILER, self.generate_compiler_command())
             self.try_execute_with_status(STATUS_EXECUTION, ["./" + self.executable_name, *self.arguments])
         except CompilationTestFailed as e:

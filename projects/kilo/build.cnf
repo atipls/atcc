@@ -3,7 +3,13 @@ project-type = "executable"
 main-module  = "Editor"
 backend      = "c" # "c" or "arm64" or "amd64" or "llvm"
 build        = "debug" # or "release"
-verbose      = "0" # 8191
+verbose      = [
+    "lexer",
+    "parser",
+    "sema",
+    "codegen",
+]
+
 
 files = [
     "source/editor.aa",

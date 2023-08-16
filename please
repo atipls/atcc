@@ -7,6 +7,8 @@ DISABLED_WARNINGS = [
     "-Wno-pointer-sign",
     "-Wno-incompatible-library-redeclaration",
     "-Wno-incompatible-pointer-types",
+    "-Wno-builtin-requires-header",
+    "-Wno-int-conversion",
     # "-Wno-builtin-declaration-mismatch"
 ]
 

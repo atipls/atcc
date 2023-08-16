@@ -59,13 +59,12 @@ static void opt_lexer_skip_whitespace(OptLexer *lexer) {
 
 static OptToken opt_lexer_next(OptLexer *lexer) {
     OptToken token = (OptToken){.kind = OPT_TOKEN_NONE, .line = lexer->line, .column = lexer->column};
+    opt_lexer_skip_whitespace(lexer);
 
     if (lexer->index >= lexer->data.length) {
         token.kind = OPT_TOKEN_EOF;
         return token;
     }
-
-    opt_lexer_skip_whitespace(lexer);
 
     char c = lexer->data.data[lexer->index];
 

@@ -1,4 +1,7 @@
 #include "utils.h"
+#include <execinfo.h>
+#include <stdarg.h>
+#include <unistd.h>
 
 void *vector_create_sized(u32 item_size, u32 capacity) {
     usize size = sizeof(VectorHeader) + item_size * capacity;
@@ -151,4 +154,26 @@ bool variant_equals(Variant *a, Variant *b) {
     }
 
     return false;
+}
+
+void panicf(const char *file, int line, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    fprintf(stderr, ANSI_ERROR "PANIC" ANSI_RESET " at %s:%d: ", file, line);
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+
+    // Print the stack trace
+    void *array[10];
+    size_t size = backtrace(array, 10);
+    cstring *symbols = backtrace_symbols(array, size);
+    if (symbols) {
+        for (int i = 0; i < size; i++)
+            fprintf(stderr, "[SYM] %s\n", symbols[i]);
+        free(symbols);
+    }
+
+    va_end(args);
+    exit(1);
 }

@@ -49,10 +49,33 @@ bool parse_options(i32 argc, cstring argv[]) {
                 continue;
             }
 
-            if (argv[i][1] == 'v') {
-                if (i + 1 >= argc)
-                    return false;
-                verbose = atoi(argv[++i]);
+            if (string_match_cstring(str("verbose-lexer"), argv[i] + 1)) {
+                verbose |= VERBOSE_LEXER;
+                continue;
+            }
+
+            if (string_match_cstring(str("verbose-parser"), argv[i] + 1)) {
+                verbose |= VERBOSE_PARSER;
+                continue;
+            }
+
+            if (string_match_cstring(str("verbose-sema"), argv[i] + 1)) {
+                verbose |= VERBOSE_SEMANTIC;
+                continue;
+            }
+
+            if (string_match_cstring(str("verbose-bytecode"), argv[i] + 1)) {
+                verbose |= VERBOSE_BYTECODE;
+                continue;
+            }
+
+            if (string_match_cstring(str("verbose-codegen"), argv[i] + 1)) {
+                verbose |= VERBOSE_CODEGEN;
+                continue;
+            }
+
+            if (string_match_cstring(str("verbose-all"), argv[i] + 1)) {
+                verbose |= VERBOSE_LEXER | VERBOSE_PARSER | VERBOSE_SEMANTIC | VERBOSE_BYTECODE | VERBOSE_CODEGEN;
                 continue;
             }
 
@@ -66,27 +89,12 @@ bool parse_options(i32 argc, cstring argv[]) {
     return true;
 }
 
-
-#ifdef ANSI_COLORED
-#define ANSI_RESET "\033[0m"
-#define ANSI_MESSAGE "\033[31m"
-#define ANSI_ERROR "\033[36m"
-#define ANSI_FILE_PATH "\033[94m"
-#else
-#define ANSI_RESET ""
-#define ANSI_MESSAGE ""
-#define ANSI_ERROR ""
-#define ANSI_FILE_PATH ""
-#endif
-
-
 static void print_semantic_errors(SemanticError *errors) {
     vector_foreach(SemanticError, error, errors) {
-        fprintf(stderr, ANSI_FILE_PATH "%.*s(%d):"ANSI_RESET" ",
+        fprintf(stderr, ANSI_FILE_PATH "%.*s(%d):" ANSI_RESET " ",
                 strp(error->location.file), error->location.line);
-
         fprintf(stderr, ANSI_MESSAGE "error: " ANSI_RESET "%.*s\n", strp(error->description));
-	}
+    }
 }
 
 static void print_help() {
@@ -96,11 +104,16 @@ static void print_help() {
     fprintf(stderr, "  -o <file> Set output file\n");
     fprintf(stderr, "  -b <b>    Set backend\n");
     fprintf(stderr, "  -d        Write dot files\n");
-    fprintf(stderr, "  -v        Verbose output\n");
+    fprintf(stderr, "  -verbose-lexer\n");
+    fprintf(stderr, "  -verbose-parser\n");
+    fprintf(stderr, "  -verbose-sema\n");
+    fprintf(stderr, "  -verbose-bytecode\n");
+    fprintf(stderr, "  -verbose-codegen\n");
+    fprintf(stderr, "  -verbose-all\n");
 }
 
 static i32 compiler_load_preload(SemanticContext *sema_context) {
-    Token *tokens = lexer_tokenize(str("preload.aa"), (Buffer) {(i8 *) preload_source, preload_source_len});
+    Token *tokens = lexer_tokenize(str("preload.aa"), (Buffer){(i8 *) preload_source, preload_source_len});
     ASTNode *program = parse_program(tokens);
 
     if (!sema_register_program(sema_context, program)) {
@@ -117,15 +130,15 @@ static i32 compiler_main(string *inputs, string output, string backend, bool wri
 
     if (!compiler_load_preload(sema_context)) {
         fprintf(stderr, "Failed to load preload\n");
-		fflush(stderr);
-		return 1;
+        fflush(stderr);
+        return 1;
     }
 
     vector_foreach(string, filename, inputs) {
         Buffer buffer = read_file(*filename);
         if (!buffer.data) {
             fprintf(stderr, "Failed to read file: %.*s\n", strp(*filename));
-			fflush(stderr);
+            fflush(stderr);
             return 1;
         }
 
@@ -221,7 +234,7 @@ static i32 config_main(cstring config) {
     string backend;
 
     string write_dot_string;
-    string verbose_string;
+    entry *verbose_entries;
 
     bool write_dot = false;
 
@@ -232,10 +245,24 @@ static i32 config_main(cstring config) {
     options_get_default(options, str("backend"), &backend, str("c"));
 
     options_get_default(options, str("dot"), &write_dot_string, str("false"));
-    options_get_default(options, str("verbose"), &verbose_string, str("0"));
 
     write_dot = string_match(write_dot_string, str("true"));
-    verbose = atoi(string_to_cstring(verbose_string));
+    if (options_get_list(options, str("verbose"), &verbose_entries)) {
+        vector_foreach(entry, entry, verbose_entries) {
+            if (string_match(entry->value, str("lexer")))
+                verbose |= VERBOSE_LEXER;
+            if (string_match(entry->value, str("parser")))
+                verbose |= VERBOSE_PARSER;
+            if (string_match(entry->value, str("sema")))
+                verbose |= VERBOSE_SEMANTIC;
+            if (string_match(entry->value, str("bytecode")))
+                verbose |= VERBOSE_BYTECODE;
+            if (string_match(entry->value, str("codegen")))
+                verbose |= VERBOSE_CODEGEN;
+            if (string_match(entry->value, str("all")))
+                verbose = VERBOSE_LEXER | VERBOSE_PARSER | VERBOSE_SEMANTIC | VERBOSE_BYTECODE | VERBOSE_CODEGEN;
+        }
+    }
 
     string *inputs = vector_create(string);
     vector_foreach(entry, entry, input_entries) {

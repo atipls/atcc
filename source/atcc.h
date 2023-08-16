@@ -434,6 +434,8 @@ struct Type {
 Type *make_type(TypeKind kind, u32 size, u32 pack);
 string type_to_string(Type *type);
 
+bool type_match(Type *a, Type *b);
+
 bool type_is_integer(Type *type);
 bool type_is_scalar(Type *type);
 bool type_is_arithmetic(Type *type);

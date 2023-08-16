@@ -1,5 +1,11 @@
 #include "bytecode.h"
 
+#ifdef __APPLE__
+#ifndef USE_LLVM
+#define USE_LLVM
+#endif
+#endif
+
 #ifdef USE_LLVM
 
 #include "ati/basic.h"
@@ -11,7 +17,6 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
-
 typedef struct {
     BCContext bc;
     LLVMContextRef llvm;

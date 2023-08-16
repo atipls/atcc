@@ -4,6 +4,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ANSI_COLORED
+#ifdef ANSI_COLORED
+#define ANSI_RESET "\033[0m"
+#define ANSI_MESSAGE "\033[31m"
+#define ANSI_ERROR "\033[36m"
+#define ANSI_FILE_PATH "\033[94m"
+#else
+#define ANSI_RESET ""
+#define ANSI_MESSAGE ""
+#define ANSI_ERROR ""
+#define ANSI_FILE_PATH ""
+#endif
+
 #define POINTER_SIZE 8
 
 typedef uint8_t u8;
@@ -36,6 +49,9 @@ typedef i32 bool;
 
 #define make(T) ((T *) calloc(sizeof(T), 1))
 #define make_n(T, n) ((T *) calloc(sizeof(T), (n)))
+
+#define panic(...) panicf(__FILE__, __LINE__, __VA_ARGS__)
+void __attribute__((noreturn)) panicf(const char *file, int line, const char *format, ...);
 
 typedef struct Buffer {
     i8 *data;

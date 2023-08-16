@@ -32,14 +32,14 @@ fun __atcc_start(argc: i32, argv: u8**): i32 {
     __atcc_init_globals();
 
     args: string[*];
-    args.data = malloc(argc * 16);
-    args.length = argc;
+    args.data = cast(string*) malloc(argc * 16);
+    args.length = cast(u32) argc;
 
-    for (i := 0; i < argc; i += 1) {
+    for (i := 0; i < cast(u32) argc; i += 1) {
         arg := &args[i];
 
         arg.data = argv[i];
-        arg.length = strlen(argv[i]);
+        arg.length = cast(u32) strlen(argv[i]);
     }
 
     return Main(args);

@@ -1,4 +1,5 @@
 #include "atcc.h"
+#include "ati/utils.h"
 
 Type *make_type(TypeKind kind, u32 size, u32 pack) {
     static u32 typeid = 0;
@@ -39,6 +40,48 @@ string type_to_string(Type *type) {
         case TYPE_AGGREGATE: return type->owner->aggregate_name;
         default: return string_format(str("{typeid%d}"), type->typeid);
     }
+}
+
+bool type_match(Type *a, Type *b) {
+    if (a->kind != b->kind)
+        return false;
+
+    if (a->kind >= TYPE_I8 && a->kind <= TYPE_U64)
+        return true;
+
+    if (a->typeid == b->typeid)
+        return true;
+
+    switch (a->kind) {
+        case TYPE_POINTER: return type_match(a->base_type, b->base_type);
+        case TYPE_ARRAY: {
+            if (a->array_is_dynamic != b->array_is_dynamic)
+                return false;
+            if (a->array_size != b->array_size)
+                return false;
+            return type_match(a->array_base, b->array_base);
+        }
+        case TYPE_FUNCTION: {
+            if (a->function_is_variadic != b->function_is_variadic)
+                return false;
+            if (vector_length(a->function_parameters) != vector_length(b->function_parameters))
+                return false;
+
+            for (u32 i = 0; i < vector_length(a->function_parameters); i += 1) {
+                Type *param_a = a->function_parameters[i];
+                Type *param_b = b->function_parameters[i];
+                if (!type_match(param_a, param_b))
+                    return false;
+            }
+
+            return type_match(a->function_return_type, b->function_return_type);
+        }
+        case TYPE_AGGREGATE: return a->owner == b->owner;
+        case TYPE_STRING: return true;
+        default: break;
+    }
+
+    panic("ICE: Unhandled type in type_match");
 }
 
 bool type_is_integer(Type *type) { return type->kind >= TYPE_I8 && type->kind <= TYPE_U64; }

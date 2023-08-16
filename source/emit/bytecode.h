@@ -307,26 +307,26 @@ void bc_patch_f32(BCBuffer *buffer, u64 offset, f32 value);
 void bc_patch_f64(BCBuffer *buffer, u64 offset, f64 value);
 
 typedef enum BCObjectKind {
-	BC_OBJECT_KIND_LINUX,
-	BC_OBJECT_KIND_WINDOWS,
-	BC_OBJECT_KIND_MACOS,
+    BC_OBJECT_KIND_LINUX,
+    BC_OBJECT_KIND_WINDOWS,
+    BC_OBJECT_KIND_MACOS,
 } BCObjectKind;
 
 typedef struct BCSection {
-	string name;
-	u8 *data;
-	u64 size;
+    string name;
+    u8 *data;
+    u64 size;
 } BCSection;
 
 typedef struct BCObject {
-	BCObjectKind kind;
-	BCSection *sections;
-	u32 num_sections;
-	void *platform;
+    BCObjectKind kind;
+    BCSection *sections;
+    u32 num_sections;
+    void *platform;
 } BCObject;
 
 typedef struct BCBinaryFile {
-	BCSection *sections;
+    BCSection *sections;
 } BCBinaryFile;
 
 bool bc_generate_amd64(BCContext context, BCObjectKind object_kind, FILE *f);
